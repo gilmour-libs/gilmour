@@ -1,10 +1,10 @@
 # -*- encoding: utf-8 -*-
 $:.push File.expand_path("../lib", __FILE__)
-require "mygem/version"
+require "./version"
 
 Gem::Specification.new do |s|
 	s.name        = "gilmour"
-	s.version     = Mygem::VERSION
+	s.version     = Gilmour::VERSION
 	s.platform    = Gem::Platform::RUBY
 	s.authors     = ["Aditya Godbole"]
 	s.email       = ["aditya.a.godbole@gmail.com"]
