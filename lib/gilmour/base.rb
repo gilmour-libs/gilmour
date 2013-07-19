@@ -19,9 +19,9 @@ module Gilmour
     ######### Registration module ###########
     # This module helps act as a Resistrar for subclasses
     module Registrar
-      attr_accessor subscribers_path
+      attr_accessor :subscribers_path
+      DEFAULT_SUBSCRIBER_PATH = 'subscribers'
       @@subscribers = {} # rubocop:disable all
-      @subscribers_path = 'subscribers'
 
       def listen_to(topic)
         handler = Proc.new
@@ -38,7 +38,7 @@ module Gilmour
       end
 
       def load_all(dir = nil)
-        dir ||= subscribers_path
+        dir ||= (subscribers_path || DEFAULT_SUBSCRIBER_PATH)
         Dir["#{dir}/*.rb"].each { |f| require f }
       end
 
