@@ -15,6 +15,7 @@ def install_test_subscriber(parent)
 end
 
 describe 'TestSubscriber' do
+  after(:all) { AMQP.stop; EM.stop }
   Given(:subscriber) { TestServiceBase }
   Given { subscriber.load_subscriber('./testservice/subscribers/test_subscriber') }
   Then do

@@ -5,6 +5,7 @@ require_relative 'helpers/connection'
 require './testservice/test_service_base'
 
 describe TestServiceBase do
+  after(:all) { AMQP.stop; EM.stop }
   Given(:subscriber) { TestServiceBase }
   Then { subscriber.should respond_to(:subscribers) }
   Then { subscriber.subscribers.should be_kind_of(Hash) }
