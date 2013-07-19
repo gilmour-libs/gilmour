@@ -1,4 +1,7 @@
+# encoding: utf-8
+# Top level Gilmour module
 module Gilmour
+  # This module implements the JSON communication protocol
   module Protocol
     def self.parse_request(payload)
       payload = sanitised_payload(payload)
@@ -25,9 +28,10 @@ module Gilmour
       [data, code, sender]
     end
 
-    def self.create_request(data, code=nil, sender = nil)
+    def self.create_request(data, code = nil, sender = nil)
       sender ||= SecureRandom.hex
-      payload = JSON.generate({'data' => data, 'code' => code, 'sender' => sender})
+      payload = JSON.generate({ 'data' => data, 'code' => code,
+                              'sender' => sender })
       [payload, sender]
     end
 
