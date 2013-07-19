@@ -1,0 +1,12 @@
+---
+:connection:
+  :host: localhost
+  :exchange: testtopicexchange
+:ping:
+  :message: Ping!
+  :response: Pong!
+:wildcard:
+  :message: Wild!
+  :topic: test.wildcard.foo
+
+
