@@ -1,3 +1,4 @@
+# encoding: utf-8
 require 'rspec/given'
 require 'securerandom'
 require './testservice/test_service_base'
@@ -5,7 +6,7 @@ require './testservice/test_service_base'
 require_relative 'helpers/connection'
 
 def install_test_subscriber(parent)
-  waiter = Thread.new { sleep 1 while true }
+  waiter = Thread.new { loop { sleep 1 } }
   TestSubscriber.callback do |topic, data|
     @topic = topic
     @data = data
@@ -15,9 +16,13 @@ def install_test_subscriber(parent)
 end
 
 describe 'TestSubscriber' do
-  after(:all) { AMQP.stop; EM.stop }
+  test_subscriber_path = './testservice/subscribers/test_subscriber'
+  after(:all) do
+    AMQP.stop
+    EM.stop
+  end
   Given(:subscriber) { TestServiceBase }
-  Given { subscriber.load_subscriber('./testservice/subscribers/test_subscriber') }
+  Given { subscriber.load_subscriber(test_subscriber_path) }
   Then do
     handlers = subscriber.subscribers(TestSubscriber::Topic)
     module_present = handlers.find { |h| h[:subscriber] == TestSubscriber }
@@ -32,7 +37,8 @@ describe 'TestSubscriber' do
       When { install_test_subscriber(subscriber) }
       context 'Check registered handlers' do
         When(:handlers) do
-          subscriber.subscribers(TestSubscriber::Simulation).map { |h| h[:handler]}
+          subscriber.subscribers(TestSubscriber::Simulation)
+            .map { |h| h[:handler] }
         end
         Then { handlers.each { |h| h.should be_kind_of Proc } }
         Then  do
@@ -41,8 +47,8 @@ describe 'TestSubscriber' do
             arg2 = SecureRandom.hex
             # simualate a handler call
             h.call(arg1, arg2)
-            @topic.should == arg1
-            @data.should == arg2
+            @topic.should be == arg1
+            @data.should be == arg2
           end
         end
       end
@@ -55,13 +61,13 @@ describe 'TestSubscriber' do
           @data = @topic = nil
           waiter = install_test_subscriber(TestServiceBase)
           publish_async(connection_opts,
-                             ping_opts[:message],
-                             'test.topic')
+                        ping_opts[:message],
+                        'test.topic')
           waiter.join
         end
         Then do
-          @data.should == ping_opts[:message]
-          @topic.should == TestSubscriber::Topic
+          @data.should be == ping_opts[:message]
+          @topic.should be == TestSubscriber::Topic
         end
       end
 
@@ -71,8 +77,8 @@ describe 'TestSubscriber' do
           @data = @topic = nil
           waiter = install_test_subscriber(TestServiceBase)
           publish_async(connection_opts,
-                             wildcard_opts[:message],
-                             wildcard_opts[:topic])
+                        wildcard_opts[:message],
+                        wildcard_opts[:topic])
           waiter.join
         end
         Then { @data.should == wildcard_opts[:message] }
@@ -90,8 +96,8 @@ describe 'TestSubscriber' do
       end
       Then do
         data, code = response
-        data.should == ping_opts[:response]
-        code.should == 200
+        data.should be == ping_opts[:response]
+        code.should be == 200
       end
     end
   end
