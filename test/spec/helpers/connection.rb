@@ -21,9 +21,24 @@ def amqp_wildcard_options
   amqp_options(:wildcard)
 end
 
+def redis_options(which)
+  amqp = YAML::load(File.open("#{File.dirname(__FILE__)}/amqp.yml"))
+  amqp[which]
 end
 
-def publish_async(options, message, key)
+def redis_connection_options
+  amqp_options(:connection)
+end
+
+def redis_ping_options
+  amqp_options(:ping)
+end
+
+def redis_wildcard_options
+  amqp_options(:wildcard)
+end
+
+def amqp_publish_async(options, message, key)
   operation = proc do 
     AMQP.connect(host: options[:host]) do |connection|
       AMQP::Channel.new(connection) do |channel|
@@ -36,7 +51,7 @@ def publish_async(options, message, key)
   EM.defer(operation)
 end
 
-def send_and_recv(options, message, key)
+def amqp_send_and_recv(options, message, key)
   waiter = Thread.new { loop { sleep 1 } }
   response = code = nil
   operation = proc do 

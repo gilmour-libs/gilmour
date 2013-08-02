@@ -65,7 +65,7 @@ describe 'TestSubscriber' do
         When do
           @data = @topic = nil
           waiter = install_test_subscriber(TestServiceBase)
-          publish_async(connection_opts,
+          amqp_publish_async(connection_opts,
                         ping_opts[:message],
                         'test.topic')
           waiter.join
@@ -81,7 +81,7 @@ describe 'TestSubscriber' do
         When do
           @data = @topic = nil
           waiter = install_test_subscriber(TestServiceBase)
-          publish_async(connection_opts,
+          amqp_publish_async(connection_opts,
                         wildcard_opts[:message],
                         wildcard_opts[:topic])
           waiter.join
@@ -95,7 +95,7 @@ describe 'TestSubscriber' do
       Given(:ping_opts) { amqp_ping_options }
       When(:response) do
         @data = @topic = nil
-        send_and_recv(connection_opts,
+        amqp_send_and_recv(connection_opts,
                       ping_opts[:message],
                       'test.topic')
       end
