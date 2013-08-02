@@ -2,6 +2,7 @@
 require 'securerandom'
 require 'json'
 require 'mash'
+require 'eventmachine'
 require_relative 'protocol'
 require_relative 'responder'
 
@@ -78,7 +79,7 @@ module Gilmour
       #   topic2 => [handler3, handler4, ...],
       #   ...
       # }
-      # where handler is a hash 
+      # where handler is a hash
       # { :handler => handler_proc,
       #   :subscriber => subscriber_derived_class
       # }
@@ -113,10 +114,14 @@ module Gilmour
       subs_by_backend
     end
 
-    def start
+    def start(startloop = false)
       subs_by_backend = subs_grouped_by_backend
       subs_by_backend.each do |b, subs|
         get_backend(b).setup_subscribers(subs)
+      end
+      if startloop
+        $stderr.puts 'Joining EM event loop'
+        EM.reactor_thread.join
       end
     end
   end
