@@ -20,8 +20,18 @@ module Gilmour
     # This module helps act as a Resistrar for subclasses
     module Registrar
       attr_accessor :subscribers_path
+      attr_accessor :backend
       DEFAULT_SUBSCRIBER_PATH = 'subscribers'
       @@subscribers = {} # rubocop:disable all
+      @@registered_services = []
+
+      def inherited(child)
+        @@registered_services << child
+      end
+
+      def registered_subscribers
+        @@registered_services
+      end
 
       def listen_to(topic)
         handler = Proc.new
@@ -46,68 +56,55 @@ module Gilmour
         require path
       end
     end
+
+    def registered_subscribers
+      self.class.registered_subscribers
+    end
     ############ End Register ###############
 
-    attr_reader :connection
-    attr_reader :channel
-    attr_reader :exchange
+    class Backend
+      @@dir = {}
 
-    def initialize_amqp_connection(options)
-      waiter = Thread.new { loop { sleep 1 } }
-      Thread.new do
-        AMQP.start(host: options[:host]) do |connection|
-          @connection = connection
-          initialize_amqp_channel(options) do
-            waiter.kill
-          end
+      def self.implements(token)
+        @@dir[token] = self
+      end
+
+      def self.get(token)
+        @@dir[token]
+      end
+
+      Dir["#{File.expand_path("../backends", __FILE__)}/*.rb"].each do |f|
+        require f
+      end
+    end
+
+    class << self
+      attr_accessor :backend
+    end
+    attr_reader :backends
+
+    def backend(name, opts = {})
+      @backends ||= {}
+      @backends[name] ||= Backend.get(name).new(opts)
+    end
+
+    def subs_grouped_by_backend
+      subs_by_backend = {}
+      self.class.subscribers.each do |topic, subs|
+        subs.each do |sub|
+          subs_by_backend[sub[:subscriber].backend] ||= {}
+          subs_by_backend[sub[:subscriber].backend][topic] ||= []
+          subs_by_backend[sub[:subscriber].backend][topic] << sub
         end
       end
-      waiter.join
+      subs_by_backend
     end
 
     def start
-      self.class.subscribers.each do |topic, subscribers|
-        subscribers.each do |subscriber|
-          setup_subscriber(topic,
-                           subscriber[:subscriber],
-                           subscriber[:handler])
-        end
+      subs_by_backend = subs_grouped_by_backend
+      subs_by_backend.each do |b, subs|
+        backend(b).start(subs)
       end
-    end
-
-    private
-
-    def initialize_amqp_channel(options)
-      AMQP::Channel.new(@connection) do |channel|
-        @channel = channel
-        initialize_amqp_exchange(options)
-        yield if block_given?
-      end
-    end
-
-    def initialize_amqp_exchange(options)
-      @exchange = channel.topic(options[:exchange])
-    end
-
-    def queue_name(subscriber, topic)
-      "#{subscriber}_#{topic}_queue"
-    end
-
-    def setup_subscriber(topic, sub, handler)
-      @channel.queue(queue_name(sub, topic))
-      .bind(@exchange, routing_key: topic)
-      .subscribe do |headers, payload|
-        data, sender = Gilmour::Protocol.parse_request(payload)
-        body, code = Gilmour::Responder.new(headers.routing_key, data)
-          .execute(handler)
-        send_async(body, code, sender) if code && sender
-      end
-    end
-
-    def send_async(data, code, destination)
-      payload, _ = Gilmour::Protocol.create_request(data, code)
-      key = "response.#{destination}"
-      @exchange.publish(payload, routing_key: key)
     end
   end
 end
