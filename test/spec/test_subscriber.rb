@@ -32,7 +32,12 @@ describe 'TestSubscriber' do
   context 'Running Service' do
     before(:all) { @service = TestServiceBase.new(amqp_connection_options) }
     Given(:connection_opts) { amqp_connection_options }
-    before(:all) { @service.start }
+    before(:all) do
+      @service.registered_subscribers.each do |s|
+        s.backend = 'amqp'
+      end
+      @service.start
+    end
     context 'Handler Register' do
       When { install_test_subscriber(subscriber) }
       context 'Check registered handlers' do
