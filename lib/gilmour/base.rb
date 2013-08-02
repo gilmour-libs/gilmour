@@ -87,7 +87,7 @@ module Gilmour
       @backends ||= {}
       @backends[name] ||= Backend.get(name).new(opts)
     end
-    alias get_backend enable_backend
+    alias_method :get_backend, :enable_backend
 
     def subs_grouped_by_backend
       subs_by_backend = {}
