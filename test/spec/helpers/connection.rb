@@ -21,13 +21,6 @@ def amqp_wildcard_options
   amqp_options(:wildcard)
 end
 
-# ToDo: This method is duplicated in src/subscriber_base.rb
-def create_payload(data, code=nil, sender = nil)
-  sender ||= SecureRandom.hex
-  { 
-    payload: JSON.generate({'data' => data, 'code' => code, 'sender' => sender}),
-    sender: sender
-  }
 end
 
 def publish_async(options, message, key)
@@ -42,20 +35,6 @@ def publish_async(options, message, key)
   end
   EM.defer(operation)
 end
-
-# ToDo: This method is duplicated in src/subscriber_base.rb
-def sanitised_payload(raw)
-  ret = begin
-          JSON.parse(raw)
-        rescue
-          raw
-        end
-  if ret.kind_of? Hash
-    ret['data'] = (JSON.parse(ret['data']) rescue ret['data'])
-  end
-  ret
-end
-
 
 def send_and_recv(options, message, key)
   waiter = Thread.new { loop { sleep 1 } }
