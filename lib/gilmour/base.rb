@@ -1,5 +1,4 @@
 # encoding: utf-8
-require 'amqp'
 require 'securerandom'
 require 'json'
 require 'mash'
@@ -73,6 +72,19 @@ module Gilmour
         @@dir[token]
       end
 
+      # This should be implemented by the derived class
+      # subscriptions is a hash in the format -
+      # { topic => [handler1, handler2, ...],
+      #   topic2 => [handler3, handler4, ...],
+      #   ...
+      # }
+      # where handler is a hash 
+      # { :handler => handler_proc,
+      #   :subscriber => subscriber_derived_class
+      # }
+      def setup_subscribers(subscriptions)
+      end
+
       Dir["#{File.expand_path("../backends", __FILE__)}/*.rb"].each do |f|
         require f
       end
@@ -104,7 +116,7 @@ module Gilmour
     def start
       subs_by_backend = subs_grouped_by_backend
       subs_by_backend.each do |b, subs|
-        get_backend(b).start(subs)
+        get_backend(b).setup_subscribers(subs)
       end
     end
   end

@@ -1,3 +1,5 @@
+require 'amqp'
+
 module Gilmour
   module Base
     class AmqpBackend < Backend
@@ -19,15 +21,14 @@ module Gilmour
         waiter.join
       end
 
-      def start(subs)
+      def setup_subscribers(subs)
         subs.each do |topic, subscribers|
           subscribers.each do |subscriber|
-            setup_subscriber(topic,
-                             subscriber[:subscriber],
-                             subscriber[:handler])
+            setup_subscriber(topic, subscriber[:handler])
           end
         end
       end
+
 
       private
 
@@ -47,8 +48,8 @@ module Gilmour
         "#{subscriber}_#{topic}_queue"
       end
 
-      def setup_subscriber(topic, sub, handler)
-        @channel.queue(queue_name(sub, topic))
+      def setup_subscriber(topic, handler)
+        @channel.queue(queue_name(self.class, topic))
         .bind(@exchange, routing_key: topic)
         .subscribe do |headers, payload|
           data, sender = Gilmour::Protocol.parse_request(payload)

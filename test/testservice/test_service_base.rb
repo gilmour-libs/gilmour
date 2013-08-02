@@ -4,7 +4,7 @@ require_relative '../../lib/gilmour/base'
 class TestServiceBase
   include Gilmour::Base
 
-  def initialize(options)
-    enable_backend('amqp', options)
+  def initialize(options, backend)
+    enable_backend(backend, options)
   end
 end
