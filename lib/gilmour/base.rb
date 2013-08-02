@@ -83,10 +83,11 @@ module Gilmour
     end
     attr_reader :backends
 
-    def backend(name, opts = {})
+    def enable_backend(name, opts = {})
       @backends ||= {}
       @backends[name] ||= Backend.get(name).new(opts)
     end
+    alias get_backend enable_backend
 
     def subs_grouped_by_backend
       subs_by_backend = {}
@@ -103,7 +104,7 @@ module Gilmour
     def start
       subs_by_backend = subs_grouped_by_backend
       subs_by_backend.each do |b, subs|
-        backend(b).start(subs)
+        get_backend(b).start(subs)
       end
     end
   end

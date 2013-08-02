@@ -5,7 +5,6 @@ class TestServiceBase
   include Gilmour::Base
 
   def initialize(options)
-    backend('amqp', options)
-#    initialize_amqp_connection(options)
+    enable_backend('amqp', options)
   end
 end
