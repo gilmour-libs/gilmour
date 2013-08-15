@@ -55,11 +55,11 @@ module Gilmour
         data, sender = Gilmour::Protocol.parse_request(payload)
         body, code = Gilmour::Responder.new(headers.routing_key, data)
         .execute(handler)
-        send_async(body, code, sender) if code && sender
+        send_async(body, sender, code) if code && sender
       end
     end
 
-    def send_async(data, code, destination)
+    def send_async(data, destination, code = nil)
       payload, _ = Gilmour::Protocol.create_request(data, code)
       key = "response.#{destination}"
       @exchange.publish(payload, routing_key: key)

@@ -1,4 +1,6 @@
 # encoding: utf-8
+
+require_relative '../protocol'
 module Gilmour
   # Base class for loading backends
   class Backend
@@ -24,6 +26,12 @@ module Gilmour
     #   :subscriber => subscriber_derived_class
     # }
     def setup_subscribers(subscriptions)
+    end
+
+    def publish(message, key)
+    end
+
+    def send_and_recv(message, key)
     end
 
     def self.load_backend(name)
