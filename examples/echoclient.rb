@@ -7,7 +7,7 @@ def redis_send_and_recv(message, key)
   loop do
     waiter = Thread.new { loop { sleep 1 } }
     newkey = "#{key}.#{SecureRandom.hex(2)}"
-    redis.send(message, newkey) do |data, code|
+    redis.publish(message, newkey) do |data, code|
       puts "Client got response: #{code}: #{data}"
       waiter.kill
     end
