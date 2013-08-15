@@ -4,16 +4,17 @@ require 'gilmour'
 class EventServer
   include Gilmour::Base
 
-  def initialize
-    enable_backend('redis')
-    enable_backend('amqp', { host: 'localhost', exchange: 'fib' })
+  def initialize(backend)
+    enable_backend(backend, { host: 'localhost', exchange: 'fib' })
+    registered_subscribers.each do |sub|
+      sub.backend = backend
+    end
+    $stderr.puts "Starting server. To see messaging in action run clients."
     start(true)
   end
 end
 
 class EchoSubscriber < EventServer
-  self.backend = 'redis'
-
   listen_to 'echo.*' do
     if request.body == 'Palmolive'
       respond nil
@@ -24,8 +25,6 @@ class EchoSubscriber < EventServer
 end
 
 class FibonacciSubscriber < EventServer
-  self.backend = 'amqp'
-  
   class << self
     attr_accessor :last
   end
@@ -42,4 +41,16 @@ class FibonacciSubscriber < EventServer
 
 end
 
-EventServer.new
+def usage(s)
+  $stderr.puts(s)
+  $stderr.puts("Usage: #{File.basename($0)} [backend to use: 'redis' or 'amqp']")
+  exit(2)
+end
+
+usage("Please specify backend to use") if ARGV.length < 1
+backend = ARGV[0]
+unless backend == 'redis' || backend == 'amqp'
+  usage("Unknown backend #{backend}")
+end
+
+EventServer.new backend
