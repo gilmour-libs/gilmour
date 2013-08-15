@@ -13,6 +13,10 @@ Gem::Specification.new do |s|
 	s.description = %q{This gem provides a Sinatra like DSL and a simple protocol to enable writing services that communicate over AMQP}
 
 	s.add_development_dependency "rspec"
+  s.add_dependency "mash"
+  s.add_dependency "redis"
+  s.add_dependency "em-hiredis"
+  s.add_dependency "amqp"
 
 	s.files         = `git ls-files`.split("\n")
 	s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
