@@ -31,9 +31,6 @@ module Gilmour
     def publish(message, key)
     end
 
-    def send_and_recv(message, key)
-    end
-
     def self.load_backend(name)
       require_relative name
     end

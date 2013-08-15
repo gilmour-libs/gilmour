@@ -26,7 +26,7 @@ module Gilmour
       data, sender = Gilmour::Protocol.parse_request(payload)
       body, code = Gilmour::Responder.new(topic, data)
       .execute(handler)
-      send_async(body, "response.#{sender}", code) if code && sender
+      publish(body, "response.#{sender}", code) if code && sender
     end
 
     def subscribe_topic(topic)
@@ -78,11 +78,10 @@ module Gilmour
       @publisher.publish(destination, payload)
       sender
     end
-    alias_method :publish, :send_async
 
-    def send(message, destination)
-      payload, sender = Gilmour::Protocol.create_request(message)
-      register_response(sender, Proc.new)
+    def publish(message, destination, code = nil)
+      payload, sender = Gilmour::Protocol.create_request(message, code)
+      register_response(sender, Proc.new) if block_given?
       @publisher.publish(destination, payload)
     end
   end
