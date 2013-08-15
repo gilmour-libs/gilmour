@@ -5,6 +5,7 @@ require 'mash'
 require 'eventmachine'
 require_relative 'protocol'
 require_relative 'responder'
+require_relative 'backends/backend'
 
 # The Gilmour module
 module Gilmour
@@ -62,41 +63,13 @@ module Gilmour
     end
     ############ End Register ###############
 
-    class Backend
-      @@dir = {}
-
-      def self.implements(token)
-        @@dir[token] = self
-      end
-
-      def self.get(token)
-        @@dir[token]
-      end
-
-      # This should be implemented by the derived class
-      # subscriptions is a hash in the format -
-      # { topic => [handler1, handler2, ...],
-      #   topic2 => [handler3, handler4, ...],
-      #   ...
-      # }
-      # where handler is a hash
-      # { :handler => handler_proc,
-      #   :subscriber => subscriber_derived_class
-      # }
-      def setup_subscribers(subscriptions)
-      end
-
-      Dir["#{File.expand_path("../backends", __FILE__)}/*.rb"].each do |f|
-        require f
-      end
-    end
-
     class << self
       attr_accessor :backend
     end
     attr_reader :backends
 
     def enable_backend(name, opts = {})
+      Gilmour::Backend.load_backend(name)
       @backends ||= {}
       @backends[name] ||= Backend.get(name).new(opts)
     end
