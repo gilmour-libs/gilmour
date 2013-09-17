@@ -2,6 +2,7 @@ require 'em-hiredis'
 require_relative 'backend'
 
 module Gilmour
+  # Redis backend implementation
   class RedisBackend < Backend
     implements 'redis'
 
@@ -9,17 +10,23 @@ module Gilmour
     attr_reader :publisher
 
     def initialize(opts)
-      @response_handlers = {}
-      @subscriptions = {}
+      @response_handlers = @subscriptions = {}
       waiter = Thread.new { loop { sleep 1 } }
       Thread.new do
         EM.run do
-          @publisher = EM::Hiredis.connect
+          @publisher = EM::Hiredis.connect(redis_host(opts))
           @subscriber = @publisher.pubsub
           waiter.kill
         end
       end
       waiter.join
+    end
+
+    def redis_host(opts)
+      host = opts[:host] || '127.0.0.1'
+      port = opts[:port] || 6379
+      db = opts[:db] || 0
+      "redis://#{host}:#{port}/#{db}"
     end
 
     def execute_handler(topic, payload, handler)
