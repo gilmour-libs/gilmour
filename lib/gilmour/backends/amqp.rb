@@ -52,17 +52,15 @@ module Gilmour
       @channel.queue(queue_name(self.class, topic))
       .bind(@exchange, routing_key: topic)
       .subscribe do |headers, payload|
-        data, sender = Gilmour::Protocol.parse_request(payload)
-        body, code = Gilmour::Responder.new(headers.routing_key, data)
+        execute_handler(headers.routing_key, payload, handler)
         .execute(handler)
         send_async(body, sender, code) if code && sender
       end
     end
 
-    def send_async(data, destination, code = nil)
+    def send(data, destination, code = nil)
       payload, _ = Gilmour::Protocol.create_request(data, code)
-      key = "response.#{destination}"
-      @exchange.publish(payload, routing_key: key)
+      @exchange.publish(payload, routing_key: destination)
     end
   end
 end

@@ -107,5 +107,22 @@ describe 'TestSubscriber' do
         code.should be == 200
       end
     end
+
+    context 'Send message from subscriber' do
+      Given(:ping_opts) { redis_ping_options }
+      When do
+        @data = @topic = nil
+        waiter = install_test_subscriber(TestServiceBase)
+        redis_publish_async(connection_opts,
+                            ping_opts[:message],
+                            'test.republish')
+        waiter.join
+      end
+      Then do
+        @data.should be == ping_opts[:message]
+        @topic.should be == TestSubscriber::Topic
+      end
+      And { EM.reactor_running?.should be_true }
+    end
   end
 end

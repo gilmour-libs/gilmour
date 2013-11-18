@@ -10,7 +10,8 @@ module Gilmour
     attr_reader :publisher
 
     def initialize(opts)
-      @response_handlers = @subscriptions = {}
+      @response_handlers = {}
+      @subscriptions = {}
       waiter = Thread.new { loop { sleep 1 } }
       Thread.new do
         EM.run do
@@ -29,12 +30,12 @@ module Gilmour
       "redis://#{host}:#{port}/#{db}"
     end
 
-    def execute_handler(topic, payload, handler)
-      data, sender = Gilmour::Protocol.parse_request(payload)
-      body, code = Gilmour::Responder.new(topic, data)
-      .execute(handler)
-      publish(body, "response.#{sender}", code) if code && sender
-    end
+#    def execute_handler(topic, payload, handler)
+#      data, sender = Gilmour::Protocol.parse_request(payload)
+#      body, code = Gilmour::Responder.new(topic, data)
+#      .execute(handler)
+#      publish(body, "response.#{sender}", code) if code && sender
+#    end
 
     def subscribe_topic(topic)
       method = topic.index('*') ? :psubscribe : :subscribe
@@ -80,16 +81,21 @@ module Gilmour
       end
     end
 
-    def send_async(data, destination, code = nil)
-      payload, sender = Gilmour::Protocol.create_request(data, code)
-      @publisher.publish(destination, payload)
-      sender
-    end
-
-    def publish(message, destination, code = nil)
-      payload, sender = Gilmour::Protocol.create_request(message, code)
+    def send(sender, destination, payload)
       register_response(sender, Proc.new) if block_given?
       @publisher.publish(destination, payload)
     end
+
+#    def send_async(data, destination, code = nil)
+#      payload, sender = Gilmour::Protocol.create_request(data, code)
+#      @publisher.publish(destination, payload)
+#      sender
+#    end
+
+#    def publish(message, destination, code = nil)
+#      payload, sender = Gilmour::Protocol.create_request(message, code)
+#      register_response(sender, Proc.new) if block_given?
+#      @publisher.publish(destination, payload)
+#    end
   end
 end

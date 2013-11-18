@@ -2,6 +2,7 @@ class TestSubscriber < TestServiceBase
   Topic = 'test.topic'
   WildcardTopic = 'test.wildcard.*'
   Simulation = 'simulate.topic'
+  Republish = 'test.republish'
 
   def self.get_callback
     @callback
@@ -24,5 +25,9 @@ class TestSubscriber < TestServiceBase
   listen_to Simulation do |topic, data|
     @callback.call(topic, data)
   end
-end
 
+  listen_to Republish do
+    resp = self
+    publish(request.body, 'test.topic')
+  end
+end

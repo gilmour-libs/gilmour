@@ -28,7 +28,23 @@ module Gilmour
     def setup_subscribers(subscriptions)
     end
 
-    def publish(message, key)
+    def execute_handler(topic, payload, handler)
+      data, sender = Gilmour::Protocol.parse_request(payload)
+      body, code = Gilmour::Responder.new(topic, data, self)
+      .execute(handler)
+      publish(body, "response.#{sender}", code) if code && sender
+    end
+
+    # If optional block is given, it will be passed to the child class
+    # implementation of 'send'. The implementation can execute the block
+    # on a response to the published message
+    def publish(message, destination, code = nil, &blk)
+      payload, sender = Gilmour::Protocol.create_request(message, code)
+      send(sender, destination, payload, &blk)
+    end
+
+    def send
+      raise "Not implemented by child class"
     end
 
     def self.load_backend(name)
