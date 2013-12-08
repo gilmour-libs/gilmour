@@ -28,6 +28,14 @@ module Gilmour
     def setup_subscribers(subscriptions)
     end
 
+    def add_listener(topic, &handler)
+      raise "Not implemented by child class"
+    end
+
+    def remove_listener(topic, &handler)
+      raise "Not implemented by child class"
+    end
+
     def execute_handler(topic, payload, handler)
       data, sender = Gilmour::Protocol.parse_request(payload)
       body, code = Gilmour::Responder.new(topic, data, self)

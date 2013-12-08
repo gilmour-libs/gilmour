@@ -8,9 +8,13 @@ module Gilmour
     attr_reader :request
 
     def initialize(topic, data, backend)
-      @request = Mash.new({ topic: topic, body: data })
+      @request = Mash.new(topic: topic, body: data)
       @response = { data: nil, code: nil }
       @backend = backend
+    end
+
+    def add_listener(topic, &handler)
+      @backend.add_listener(topic, &handler)
     end
 
     def respond(body, code = 200)
@@ -20,13 +24,17 @@ module Gilmour
 
     def execute(handler)
       Fiber.new do
-        instance_eval(&handler)
+        begin
+          instance_eval(&handler)
+        rescue
+          nil
+        end
       end.resume
       [@response[:data], @response[:code]]
     end
 
     def publish(message, destination, &blk)
-      @backend.publish(message, destination, nil, &blk) 
+      @backend.publish(message, destination, nil, &blk)
     end
   end
 end

@@ -9,20 +9,6 @@ module Gilmour
     attr_reader :subscriber
     attr_reader :publisher
 
-    def initialize(opts)
-      @response_handlers = {}
-      @subscriptions = {}
-      waiter = Thread.new { loop { sleep 1 } }
-      Thread.new do
-        EM.run do
-          @publisher = EM::Hiredis.connect(redis_host(opts))
-          @subscriber = @publisher.pubsub
-          waiter.kill
-        end
-      end
-      waiter.join
-    end
-
     def redis_host(opts)
       host = opts[:host] || '127.0.0.1'
       port = opts[:port] || 6379
@@ -30,12 +16,37 @@ module Gilmour
       "redis://#{host}:#{port}/#{db}"
     end
 
-#    def execute_handler(topic, payload, handler)
-#      data, sender = Gilmour::Protocol.parse_request(payload)
-#      body, code = Gilmour::Responder.new(topic, data)
-#      .execute(handler)
-#      publish(body, "response.#{sender}", code) if code && sender
-#    end
+    def initialize(opts)
+      @response_handlers = {}
+      @subscriptions = {}
+      waiter = Thread.new { loop { sleep 1 } }
+      Thread.new do
+        EM.run do
+          setup_pubsub(opts)
+          waiter.kill
+        end
+      end
+      waiter.join
+    end
+
+    def setup_pubsub(opts)
+      @publisher = EM::Hiredis.connect(redis_host(opts))
+      @subscriber = @publisher.pubsub
+      register_handlers
+    end
+
+    def register_handlers
+      @subscriber.on(:pmessage) do |key, topic, payload|
+        pmessage_handler(key, topic, payload)
+      end
+      @subscriber.on(:message) do |topic, payload|
+        if topic.start_with? 'response.'
+          response_handler(topic, payload)
+        else
+          pmessage_handler(topic, topic, payload)
+        end
+      end
+    end
 
     def subscribe_topic(topic)
       method = topic.index('*') ? :psubscribe : :subscribe
@@ -68,34 +79,22 @@ module Gilmour
       @subscriptions = subs
       EM.defer do
         subs.keys.each { |topic| subscribe_topic(topic) }
-        @subscriber.on(:pmessage) do |key, topic, payload|
-          pmessage_handler(key, topic, payload)
-        end
-        @subscriber.on(:message) do |topic, payload|
-          if topic.start_with? 'response.'
-            response_handler(topic, payload)
-          else
-            pmessage_handler(topic, topic, payload)
-          end
-        end
       end
+    end
+
+    def add_listener(topic, &handler)
+      @subscriptions[topic] ||= []
+      @subscriptions[topic] << { handler: handler }
+      subscribe_topic(topic)
+    end
+
+    def remove_listener(topic)
+      @subscriptions[topic] = []
     end
 
     def send(sender, destination, payload)
       register_response(sender, Proc.new) if block_given?
       @publisher.publish(destination, payload)
     end
-
-#    def send_async(data, destination, code = nil)
-#      payload, sender = Gilmour::Protocol.create_request(data, code)
-#      @publisher.publish(destination, payload)
-#      sender
-#    end
-
-#    def publish(message, destination, code = nil)
-#      payload, sender = Gilmour::Protocol.create_request(message, code)
-#      register_response(sender, Proc.new) if block_given?
-#      @publisher.publish(destination, payload)
-#    end
   end
 end
