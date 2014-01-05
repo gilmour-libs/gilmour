@@ -88,8 +88,14 @@ module Gilmour
       subscribe_topic(topic)
     end
 
-    def remove_listener(topic)
-      @subscriptions[topic] = []
+    def remove_listener(topic, handler = nil)
+      if handler
+        subs = @subscriptions[topic]
+        subs.delete_if { |e| e[:handler] == handler }
+      else
+        @subscriptions[topic] = []
+      end
+      @subscriber.unsubscribe(topic) if @subscriptions[topic].empty?
     end
 
     def send(sender, destination, payload)
