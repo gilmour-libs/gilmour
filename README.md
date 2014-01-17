@@ -2,13 +2,14 @@
 
 Gilmour is a framework for writing micro-services that exchange data over
 non-http transports. Currently supported backends are AMQP and Redis PubSub.
-In both cases, topics (in case of AMQP) and channels (in case of Redis) as "routes".
+In both cases, topics (in case of AMQP) and channels (in case of Redis) are
+used like "routes".
 The DSL provided is similar to Sinatra.
 
 ## Protocol
 
 Gilmour uses it's own simple protocol to send request and response "headers".
-The structure of the AMQP payload is a simple JSON as shown below:
+The structure of the payload is a simple JSON as shown below:
 
     {
 	  data: The actual payload,
