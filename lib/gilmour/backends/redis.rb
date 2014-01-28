@@ -76,7 +76,7 @@ module Gilmour
     end
 
     def setup_subscribers(subs = {})
-      @subscriptions = subs
+      @subscriptions.merge!(subs)
       EM.defer do
         subs.keys.each { |topic| subscribe_topic(topic) }
       end
