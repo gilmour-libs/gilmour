@@ -1,7 +1,7 @@
 # Gilmour
 
 Gilmour is a framework that helps in creating services that communicate over
-an AMQP server using topic topology. The idea is to use topics as "routes" and
+Redis pub/sub. The idea is to use topics as "routes" and
 provide a DSL similar to Sinatra to write services that communicate via the
 message bus.
 
