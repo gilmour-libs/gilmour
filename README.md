@@ -1,7 +1,7 @@
 # Gilmour
 
 Gilmour is a framework that helps in creating services that communicate over
-Redis pub/sub. The idea is to use topics as "routes" and
+Redis pub/sub and/or AMQP topic exchanges. The idea is to use topics as "routes" and
 provide a DSL similar to Sinatra to write services that communicate via the
 message bus.
 
@@ -48,6 +48,6 @@ subscribers/testsubscriber.rb
 
 ## Specs
 
-To run the specs, modify `test/spec/helpers/amqp.yml` to point to your rabbitmq server.
+To run the specs, modify `test/spec/helpers/amqp.yml` to point to your rabbitmq or redis server.
 Then, from within the `test` directory, run `rspec spec/*`
 
