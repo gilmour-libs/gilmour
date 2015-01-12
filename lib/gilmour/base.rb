@@ -1,7 +1,7 @@
 # encoding: utf-8
 require 'securerandom'
 require 'json'
-require 'mash'
+require 'mash' unless class_exists? 'Mash'
 require 'eventmachine'
 require_relative 'protocol'
 require_relative 'responder'
