@@ -1,4 +1,5 @@
 # encoding: utf-8
+require 'json'
 # Top level Gilmour module
 module Gilmour
   # This module implements the JSON communication protocol

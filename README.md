@@ -1,14 +1,15 @@
 # Gilmour
 
-Gilmour is a framework that helps in creating services that communicate over
-Redis pub/sub and/or AMQP topic exchanges. The idea is to use topics as "routes" and
-provide a DSL similar to Sinatra to write services that communicate via the
-message bus.
+Gilmour is a framework for writing micro-services that exchange data over
+non-http transports. Currently supported backends are AMQP and Redis PubSub.
+In both cases, topics (in case of AMQP) and channels (in case of Redis) are
+used like "routes".
+The DSL provided is similar to Sinatra.
 
 ## Protocol
 
 Gilmour uses it's own simple protocol to send request and response "headers".
-The structure of the AMQP payload is a simple JSON as shown below:
+The structure of the payload is a simple JSON as shown below:
 
     {
 	  data: The actual payload,
@@ -20,31 +21,9 @@ The `sender` field actually represents a unique sender key. Any reponse that
 is to be sent to the request is sent on the "reservered" topic
 `response.<sender>` on the same exchange.
 
-## Usage
+## Usage Examples
 
-container.rb
-
-	require 'gilmour'
-	
-	class MyContainer
-	  include Gilmour::Base
-	
-	  subscribers_path "./subscribers"
-	
-	  def initialize(options)
-        spawn = true
-	    start(options, spawn)
-        my_other_cool_functionality
-	  end
-	end
-
-subscribers/testsubscriber.rb
-
-	class MySubscriber < MyContainer
-	  listen_to "test.topic.*" do
-	    respond 'Pong!' if request.body == 'Ping!'
-	  end
-	end
+See the `examples` directory for examples of usage
 
 ## Specs
 
