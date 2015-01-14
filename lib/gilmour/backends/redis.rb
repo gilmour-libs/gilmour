@@ -55,7 +55,7 @@ module Gilmour
 
     def pmessage_handler(key, matched_topic, payload)
       @subscriptions[key].each do |subscription|
-        execute_handler(matched_topic, payload, subscription[:handler])
+        execute_handler(matched_topic, payload, subscription)
       end
     end
 
@@ -63,6 +63,12 @@ module Gilmour
       topic = "response.#{sender}"
       @response_handlers[topic] = handler
       subscribe_topic(topic)
+    end
+
+    def acquire_ex_lock(sender)
+      @publisher.set(sender, sender, 'EX', 600, 'NX') do |val|
+        yield val if val && block_given?
+      end
     end
 
     def response_handler(sender, payload)

@@ -7,16 +7,16 @@ Gem::Specification.new do |s|
 	s.version     = Gilmour::VERSION
 	s.platform    = Gem::Platform::RUBY
 	s.authors     = ["Aditya Godbole"]
-	s.email       = ["aditya.a.godbole@gmail.com"]
+	s.email       = ["code.aa@gdbl.me"]
 	s.homepage    = ""
 	s.summary     = %q{A Sinatra like DSL for implementing AMQP services}
 	s.description = %q{This gem provides a Sinatra like DSL and a simple protocol to enable writing services that communicate over AMQP}
 
 	s.add_development_dependency "rspec"
-  s.add_dependency "mash"
-  s.add_dependency "redis"
-  s.add_dependency "em-hiredis"
-  s.add_dependency "amqp"
+	s.add_dependency "mash"
+	s.add_dependency "redis"
+	s.add_dependency "em-hiredis"
+	s.add_dependency "amqp"
 
 	s.files         = `git ls-files`.split("\n")
 	s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
