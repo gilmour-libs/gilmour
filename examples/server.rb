@@ -15,7 +15,8 @@ class EventServer
 end
 
 class EchoSubscriber < EventServer
-  listen_to 'echo.*' do
+  # Passing second parameter as true makes only one instance of this handler handle a request
+  listen_to 'echo.*', true do
     if request.body == 'Palmolive'
       respond nil
     else
