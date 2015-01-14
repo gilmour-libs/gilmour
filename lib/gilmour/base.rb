@@ -34,10 +34,10 @@ module Gilmour
         @@registered_services
       end
 
-      def listen_to(topic)
+      def listen_to(topic, excl = false)
         handler = Proc.new
         @@subscribers[topic] ||= []
-        @@subscribers[topic] << { handler: handler, subscriber: self }
+        @@subscribers[topic] << { handler: handler, subscriber: self , exclusive: excl}
       end
 
       def subscribers(topic = nil)

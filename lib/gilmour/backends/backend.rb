@@ -36,10 +36,23 @@ module Gilmour
       raise "Not implemented by child class"
     end
 
-    def execute_handler(topic, payload, handler)
+    def acquire_ex_lock(sender)
+      raise "Not implemented by child class"
+    end
+
+
+    def execute_handler(topic, payload, sub)
       data, sender = Gilmour::Protocol.parse_request(payload)
+      if sub[:exclusive]
+        acquire_ex_lock(sender) { _execute_handler(topic, data, sender, sub) }
+      else
+        _execute_handler(topic, data, sender, sub)
+      end
+    end
+
+    def _execute_handler(topic, data, sender, sub)
       body, code = Gilmour::Responder.new(topic, data, self)
-      .execute(handler)
+      .execute(sub[:handler])
       publish(body, "response.#{sender}", code) if code && sender
     end
 
