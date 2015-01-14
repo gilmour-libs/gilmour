@@ -55,6 +55,9 @@ module Gilmour
       body, code = Gilmour::Responder.new(topic, data, self)
       .execute(sub[:handler])
       publish(body, "response.#{sender}", code) if code && sender
+    rescue Exception => e
+      $stderr.puts e.message
+      $stderr.puts e.backtrace
     end
 
     # If optional block is given, it will be passed to the child class
