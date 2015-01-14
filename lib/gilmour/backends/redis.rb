@@ -90,7 +90,9 @@ module Gilmour
 
     def add_listener(topic, &handler)
       @subscriptions[topic] ||= []
-      @subscriptions[topic] << { handler: handler }
+      subscriber = { handler: handler, subscriber: excl }
+      subscriber.merge!({exclusive: true}) if excl
+      @subscriptions[topic] << subscriber
       subscribe_topic(topic)
     end
 
