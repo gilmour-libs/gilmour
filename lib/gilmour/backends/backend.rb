@@ -44,7 +44,8 @@ module Gilmour
     def execute_handler(topic, payload, sub)
       data, sender = Gilmour::Protocol.parse_request(payload)
       if sub[:exclusive]
-        acquire_ex_lock(sender) { _execute_handler(topic, data, sender, sub) }
+        lock_key = sender + sub[:subscriber].to_s
+        acquire_ex_lock(lock_key) { _execute_handler(topic, data, sender, sub) }
       else
         _execute_handler(topic, data, sender, sub)
       end
