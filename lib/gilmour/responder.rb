@@ -7,7 +7,8 @@ module Gilmour
   class Responder
     attr_reader :request
 
-    def initialize(topic, data, backend)
+    def initialize(sender, topic, data, backend)
+      @sender = sender
       @request = Mash.new(topic: topic, body: data)
       @response = { data: nil, code: nil }
       @backend = backend
@@ -17,24 +18,33 @@ module Gilmour
       @backend.add_listener(topic, &handler)
     end
 
-    def respond(body, code = 200)
+    def respond(body, code = 200, opts = {})
       @response[:data] = body
       @response[:code] = code
+      if opts[:now]
+        send_response if @sender
+        @response = {}
+      end
     end
 
     def execute(handler)
-      Fiber.new do
-        begin
-          instance_eval(&handler)
-        rescue
-          nil
-        end
-      end.resume
+      begin
+        instance_eval(&handler)
+      rescue Exception => e
+        $stderr.puts e.message  
+        $stderr.puts e.backtrace  
+        @response[:code] = 500
+      end
+      send_response if @response[:code] && @sender
       [@response[:data], @response[:code]]
     end
 
-    def publish(message, destination, &blk)
-      @backend.publish(message, destination, nil, &blk)
+    def publish(message, destination, opts = {}, &blk)
+      @backend.publish(message, destination, opts, &blk)
+    end
+
+    def send_response
+      @backend.send_response(@sender, @response[:data], @response[:code])
     end
   end
 end
