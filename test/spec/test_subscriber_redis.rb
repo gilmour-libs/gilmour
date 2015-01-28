@@ -5,6 +5,12 @@ require './testservice/test_service_base'
 
 require_relative 'helpers/connection'
 
+RSpec.configure do |config|
+  config.expect_with :rspec do |c|
+    c.syntax = [:should, :expect]
+  end
+end
+
 def install_test_subscriber(parent)
   waiter = Thread.new { loop { sleep 1 } }
   TestSubscriber.callback do |topic, data|
@@ -25,7 +31,7 @@ describe 'TestSubscriber' do
   Then do
     handlers = subscriber.subscribers(TestSubscriber::Topic)
     module_present = handlers.find { |h| h[:subscriber] == TestSubscriber }
-    module_present.should be_true
+    module_present.should_not be_nil
   end
 
   context 'Running Service' do
@@ -75,7 +81,7 @@ describe 'TestSubscriber' do
           @data.should be == ping_opts[:message]
           @topic.should be == TestSubscriber::Topic
         end
-        And { EM.reactor_running?.should be_true }
+        And { expect(EM.reactor_thread.alive?).to be_truthy }
       end
 
       context 'Recieve a message on a wildcard key' do
@@ -95,11 +101,19 @@ describe 'TestSubscriber' do
 
     context 'Send and receive a message' do
       Given(:ping_opts) { amqp_ping_options }
+      When(:sub) do
+        Gilmour::RedisBackend.new({})
+      end
       When(:response) do
-        @data = @topic = nil
-        redis_send_and_recv(connection_opts,
-                            ping_opts[:message],
-                            'test.topic')
+        waiter = Thread.new { loop { sleep 1 } }
+        data = code = nil
+        sub.publish(ping_opts[:message], 'test.topic', { confirm_subscriber: true }) do |d, c|
+          data = d
+          code = c
+          waiter.kill
+        end
+        waiter.join
+        [data, code]
       end
       Then do
         data, code = response
@@ -110,19 +124,26 @@ describe 'TestSubscriber' do
 
     context 'Send message from subscriber' do
       Given(:ping_opts) { redis_ping_options }
-      When do
-        @data = @topic = nil
-        waiter = install_test_subscriber(TestServiceBase)
-        redis_publish_async(connection_opts,
-                            ping_opts[:message],
-                            'test.republish')
+      When(:sub) do
+        Gilmour::RedisBackend.new({})
+      end
+      When (:response) do
+        data = code = nil
+        waiter = Thread.new { loop { sleep 1 } }
+        sub.publish(ping_opts[:message], 'test.republish') do |d, c|
+          data = d
+          code = c
+          waiter.kill
+        end
         waiter.join
+        [data, code]
       end
       Then do
-        @data.should be == ping_opts[:message]
-        @topic.should be == TestSubscriber::Topic
+        data, code = response
+        data.should be == ping_opts[:response]
+        code.should be == 200
       end
-      And { EM.reactor_running?.should be_true }
+      And { expect(EM.reactor_thread.alive?).to be_truthy }
     end
   end
 end
