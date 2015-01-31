@@ -1,3 +1,3 @@
 gemspec
 
-gem 'em-hiredis', git: 'https://github.com:adityagodbole/em-hiredis.git', branch: 'pubsub_client'
+gem 'em-hiredis', git: 'https://github.com/adityagodbole/em-hiredis.git', branch: 'pubsub_client'
