@@ -151,7 +151,7 @@ module Gilmour
     end
 
     def confirm_subscriber(dest, &blk)
-      res = @subscriber.pubsub('numsub', dest) do |_, num|
+      res = @publisher.pubsub_client('numsub', dest) do |_, num|
         blk.call(num.to_i > 0)
       end
     rescue Exception => e
