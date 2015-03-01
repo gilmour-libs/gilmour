@@ -1,5 +1,5 @@
 require 'amqp'
-require_relative '../../lib/gilmour/base'
+require_relative '../../lib/gilmour'
 
 class TestServiceBase
   include Gilmour::Base
