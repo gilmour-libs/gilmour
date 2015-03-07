@@ -31,7 +31,7 @@ describe 'TestSubscriber' do
   Then do
     handlers = subscriber.subscribers(TestSubscriber::Topic)
     module_present = handlers.find { |h| h[:subscriber] == TestSubscriber }
-    module_present.should_not be_nil
+    module_present.should be_truthy
   end
 
   context 'Running Service' do
