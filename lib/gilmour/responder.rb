@@ -26,8 +26,9 @@ module Gilmour
       Fiber.new do
         begin
           instance_eval(&handler)
-        rescue
-          nil
+        rescue Exception => e
+          $stderr.puts e.message
+          $stderr.puts e.backtrace
         end
       end.resume
       [@response[:data], @response[:code]]
