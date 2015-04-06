@@ -13,7 +13,9 @@ class TestSubscriber < TestServiceBase
   end
 
   listen_to Topic do
-    TestSubscriber.get_callback.call(request.topic, request.body)
+    if TestSubscriber.get_callback
+      TestSubscriber.get_callback.call(request.topic, request.body)
+    end
     respond 'Pong!' if request.body == 'Ping!'
   end
 
@@ -28,6 +30,8 @@ class TestSubscriber < TestServiceBase
 
   listen_to Republish do
     resp = self
-    publish(request.body, 'test.topic')
+    publish(request.body, 'test.topic') do |data, code|
+      resp.respond data, 200, now: true
+    end
   end
 end

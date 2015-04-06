@@ -40,6 +40,9 @@ module Gilmour
       raise "Not implemented by child class"
     end
 
+    def send_response(sender, body, code)
+      raise "Not implemented by child class"
+    end
 
     def execute_handler(topic, payload, sub)
       data, sender = Gilmour::Protocol.parse_request(payload)
@@ -52,20 +55,22 @@ module Gilmour
     end
 
     def _execute_handler(topic, data, sender, sub)
-      body, code = Gilmour::Responder.new(topic, data, self)
-      .execute(sub[:handler])
-      publish(body, "response.#{sender}", code) if code && sender
-    rescue Exception => e
-      $stderr.puts e.message
-      $stderr.puts e.backtrace
+      Gilmour::Responder.new(sender, topic, data, self).execute(sub[:handler])
     end
 
     # If optional block is given, it will be passed to the child class
     # implementation of 'send'. The implementation can execute the block
     # on a response to the published message
-    def publish(message, destination, code = nil, &blk)
+    def publish(message, destination, opts = {}, code = 0, &blk)
       payload, sender = Gilmour::Protocol.create_request(message, code)
-      send(sender, destination, payload, &blk)
+      EM.defer do # Because publish can be called from outside the event loop
+        begin
+          send(sender, destination, payload, opts, &blk)
+        rescue Exception => e
+          $stderr.puts e.message
+          $stderr.puts e.message
+        end
+      end
     end
 
     def send
