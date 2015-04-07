@@ -15,21 +15,7 @@ module Gilmour
       @pipe = IO.pipe
     end
 
-    class Plumber < EventMachine::Connection
-      def initialize(sender)
-        $stderr.puts "Sender: #{sender}"
-        @sender = sender
-      end
-
-      def receive_data(data)
-        $stderr.puts "receive_data: #{data}"
-        sender, res_data, res_code = JSON.parse(data)
-        @sender.send(sender, res_data, res_code)
-      end
-    end
-
     def receive_data(data)
-      $stderr.puts "Receive: #{data}"
       sender, res_data, res_code = JSON.parse(data)
       write_response(sender, res_data, res_code) if sender && res_code
     end
@@ -62,7 +48,6 @@ module Gilmour
         @read_pipe.close
         @response_sent = false
         _execute(handler)
-        $stderr.puts "Child done"
       end
       @write_pipe.close
       receive_data(@read_pipe.readline)
