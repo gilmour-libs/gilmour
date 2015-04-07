@@ -28,6 +28,17 @@ module Gilmour
       end
     end
 
+    def receive_data(data)
+      $stderr.puts "Receive: #{data}"
+      sender, res_data, res_code = JSON.parse(data)
+      write_response(sender, res_data, res_code) if sender && res_code
+    end
+    
+    # Called by parent
+    def write_response(sender, data, code)
+      @backend.send_response(sender, data, code)
+    end
+
     def add_listener(topic, &handler)
       @backend.add_listener(topic, &handler)
     end
@@ -36,37 +47,29 @@ module Gilmour
       @response[:data] = body
       @response[:code] = code
       if opts[:now]
-        send_response if @sender
+        send_response
         @response = {}
       end
     end
 
-    def receive_data(data)
-      $stderr.puts "receive_data: #{data}"
-      sender, res_data, res_code = JSON.parse(data)
-      write_response(sender, res_data, res_code) if res_code && sender
-    end
-
+    # Called by parent
     def execute(handler)
-      $stderr.puts "Forking -->"
       @read_pipe = @pipe[0]
-      @reader = Thread.new do
-        receive_data(@read_pipe.readline)
-        @read_pipe.close
-      end
       @write_pipe = @pipe[1]
       pid = Process.fork do
-        $stderr.puts "In child"
+        @backend.stop
+        EventMachine.stop_event_loop
         @read_pipe.close
+        @response_sent = false
         _execute(handler)
         $stderr.puts "Child done"
       end
       @write_pipe.close
-      Process.waitpid(pid)
-      @reader.join
-      $stderr.puts "Parent done"
+      receive_data(@read_pipe.readline)
+      Process.waitpid(pid) 
     end
 
+    # Called by child
     def _execute(handler)
       begin
         instance_eval(&handler)
@@ -79,19 +82,18 @@ module Gilmour
       [@response[:data], @response[:code]]
     end
 
+    # Todo: pipe publisher as well
     def publish(message, destination, opts = {}, &blk)
       @backend.publish(message, destination, opts, &blk)
     end
 
+    # Called by child
     def send_response
+      return if @response_sent
       msg = JSON.generate([@sender, @response[:data], @response[:code]])
+      @response_sent = true
       @write_pipe.write(msg)
-      @write_pipe.flush
-    end
-
-    def write_response(sender, data, code)
-      @backend.send_response(sender, data, code)
-      $stderr.puts "Sent response"
+      @write_pipe.flush # This flush is very important
     end
   end
 end
