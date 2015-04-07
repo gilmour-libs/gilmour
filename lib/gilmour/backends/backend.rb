@@ -86,6 +86,10 @@ module Gilmour
         load_backend f
       end
     end
+
+    def stop(sender, body, code)
+      raise "Not implemented by child class"
+    end
   end
 end
 

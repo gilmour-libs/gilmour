@@ -31,7 +31,7 @@ module Gilmour
 
     def setup_pubsub(opts)
       @publisher = EM::Hiredis.connect(redis_host(opts))
-      @subscriber = @publisher.pubsub_client
+      @subscriber = @publisher.pubsub
       register_handlers
     rescue Exception => e
       $stderr.puts e.message
@@ -154,6 +154,10 @@ module Gilmour
       end
     rescue Exception => e
       $stderr.puts e.message
+    end
+
+    def stop
+      @subscriber.close_connection
     end
   end
 end
