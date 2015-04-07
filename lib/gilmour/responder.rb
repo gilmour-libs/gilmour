@@ -22,7 +22,7 @@ module Gilmour
       end
 
       def receive_data(data)
-        $stderr.puts "Receive: #{data}"
+        $stderr.puts "receive_data: #{data}"
         sender, res_data, res_code = JSON.parse(data)
         @sender.send(sender, res_data, res_code)
       end
@@ -41,13 +41,30 @@ module Gilmour
       end
     end
 
+    def receive_data(data)
+      $stderr.puts "receive_data: #{data}"
+      sender, res_data, res_code = JSON.parse(data)
+      write_response(sender, res_data, res_code) if res_code && sender
+    end
+
     def execute(handler)
-      @read_pipe = EventMachine.attach(@pipe[0], Plumber, self)
-      EventMachine.fork_reactor do
-        @read_pipe.close_connection
-        @write_pipe = EventMachine.attach(@pipe[1])
-        _execute(handler)
+      $stderr.puts "Forking -->"
+      @read_pipe = @pipe[0]
+      @reader = Thread.new do
+        receive_data(@read_pipe.readline)
+        @read_pipe.close
       end
+      @write_pipe = @pipe[1]
+      pid = Process.fork do
+        $stderr.puts "In child"
+        @read_pipe.close
+        _execute(handler)
+        $stderr.puts "Child done"
+      end
+      @write_pipe.close
+      Process.waitpid(pid)
+      @reader.join
+      $stderr.puts "Parent done"
     end
 
     def _execute(handler)
@@ -58,7 +75,7 @@ module Gilmour
         $stderr.puts e.backtrace  
         @response[:code] = 500
       end
-      send_response if @response[:code] && @sender
+      send_response
       [@response[:data], @response[:code]]
     end
 
@@ -68,11 +85,13 @@ module Gilmour
 
     def send_response
       msg = JSON.generate([@sender, @response[:data], @response[:code]])
-      @write_pipe.send_data(msg)
+      @write_pipe.write(msg)
+      @write_pipe.flush
     end
 
-    def send(sender, data, code)
+    def write_response(sender, data, code)
       @backend.send_response(sender, data, code)
+      $stderr.puts "Sent response"
     end
   end
 end
