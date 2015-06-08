@@ -79,7 +79,7 @@ module Gilmour
     def enable_backend(name, opts = {})
       Gilmour::Backend.load_backend(name)
       @backends ||= {}
-      @backends[name] ||= Backend.get(name).new(opts)
+      @backends[name] ||= Gilmour::Backend.get(name).new(opts)
     end
     alias_method :get_backend, :enable_backend
 
