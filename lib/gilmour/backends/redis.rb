@@ -62,7 +62,7 @@ module Gilmour
 
     def pmessage_handler(key, matched_topic, payload)
       @subscriptions[key].each do |subscription|
-        execute_handler(matched_topic, payload, subscription)
+        EM.defer(->{execute_handler(matched_topic, payload, subscription)})
       end
     end
 
@@ -87,7 +87,7 @@ module Gilmour
 
     def response_handler(sender, payload)
       data, code, _ = Gilmour::Protocol.parse_response(payload)
-      handler = @response_handlers.delete(sender) 
+      handler = @response_handlers.delete(sender)
       @subscriber.unsubscribe(sender)
       if handler
         handler[:timer].cancel
