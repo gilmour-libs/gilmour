@@ -19,7 +19,7 @@ module Gilmour
       sender, res_data, res_code = JSON.parse(data)
       write_response(sender, res_data, res_code) if sender && res_code
     end
-    
+
     # Called by parent
     def write_response(sender, data, code)
       @backend.send_response(sender, data, code)
@@ -39,19 +39,27 @@ module Gilmour
     end
 
     # Called by parent
-    def execute(handler)
+    def execute(handler, multi_process)
       @read_pipe = @pipe[0]
       @write_pipe = @pipe[1]
-      pid = Process.fork do
-        @backend.stop
-        EventMachine.stop_event_loop
-        @read_pipe.close
-        @response_sent = false
+
+      if multi_process
+        pid = Process.fork do
+          @backend.stop
+          EventMachine.stop_event_loop
+          @read_pipe.close
+          @response_sent = false
+          _execute(handler)
+        end
+        @write_pipe.close
+        receive_data(@read_pipe.readline)
+        Process.waitpid(pid)
+      else
         _execute(handler)
+        @write_pipe.close
+        receive_data(@read_pipe.readline)
       end
-      @write_pipe.close
-      receive_data(@read_pipe.readline)
-      Process.waitpid(pid) 
+
     end
 
     # Called by child
@@ -59,8 +67,8 @@ module Gilmour
       begin
         instance_eval(&handler)
       rescue Exception => e
-        $stderr.puts e.message  
-        $stderr.puts e.backtrace  
+        $stderr.puts e.message
+        $stderr.puts e.backtrace
         @response[:code] = 500
       end
       send_response
