@@ -58,7 +58,6 @@ module Gilmour
       else
         _execute(handler)
       end
-
     end
 
     # Called by child
