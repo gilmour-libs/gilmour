@@ -69,7 +69,7 @@ module Gilmour
         $stderr.puts e.backtrace
         @response[:code] = 500
       end
-      send_response
+      send_response if @response[:code]
       #[@response[:data], @response[:code]]
     end
 
