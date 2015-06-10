@@ -12,6 +12,7 @@ module Gilmour
       @request = Mash.new(topic: topic, body: data)
       @response = { data: nil, code: nil }
       @backend = backend
+      @multi_process = backend.multi_process
       @pipe = IO.pipe
     end
 
@@ -39,11 +40,11 @@ module Gilmour
     end
 
     # Called by parent
-    def execute(handler, multi_process)
-      @read_pipe = @pipe[0]
-      @write_pipe = @pipe[1]
+    def execute(handler)
+      if @multi_process
+        @read_pipe = @pipe[0]
+        @write_pipe = @pipe[1]
 
-      if multi_process
         pid = Process.fork do
           @backend.stop
           EventMachine.stop_event_loop
@@ -56,8 +57,6 @@ module Gilmour
         Process.waitpid(pid)
       else
         _execute(handler)
-        @write_pipe.close
-        receive_data(@read_pipe.readline)
       end
 
     end
@@ -72,7 +71,7 @@ module Gilmour
         @response[:code] = 500
       end
       send_response
-      [@response[:data], @response[:code]]
+      #[@response[:data], @response[:code]]
     end
 
     # Todo: pipe publisher as well
@@ -83,10 +82,15 @@ module Gilmour
     # Called by child
     def send_response
       return if @response_sent
-      msg = JSON.generate([@sender, @response[:data], @response[:code]])
       @response_sent = true
-      @write_pipe.write(msg)
-      @write_pipe.flush # This flush is very important
+
+      if @multi_process
+        msg = JSON.generate([@sender, @response[:data], @response[:code]])
+        @write_pipe.write(msg)
+        @write_pipe.flush # This flush is very important
+      else
+        write_response(@sender, @response[:data], @response[:code])
+      end
     end
   end
 end

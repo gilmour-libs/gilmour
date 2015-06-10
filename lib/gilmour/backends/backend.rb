@@ -57,8 +57,7 @@ module Gilmour
     end
 
     def _execute_handler(topic, data, sender, sub)
-      Gilmour::Responder.new(sender, topic, data, self).execute(
-        sub[:handler], self.multi_process)
+      Gilmour::Responder.new(sender, topic, data, self).execute(sub[:handler])
     end
 
     # If optional block is given, it will be passed to the child class
