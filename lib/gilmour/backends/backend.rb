@@ -7,6 +7,8 @@ module Gilmour
     SUPPORTED_BACKENDS = %w(amqp redis)
     @@registry = {}
 
+    attr_accessor :multi_process
+
     def self.implements(backend_name)
       @@registry[backend_name] = self
     end
@@ -55,7 +57,8 @@ module Gilmour
     end
 
     def _execute_handler(topic, data, sender, sub)
-      Gilmour::Responder.new(sender, topic, data, self).execute(sub[:handler])
+      Gilmour::Responder.new(sender, topic, data, self).execute(
+        sub[:handler], self.multi_process)
     end
 
     # If optional block is given, it will be passed to the child class

@@ -20,6 +20,7 @@ class EchoSubscriber < EventServer
     if request.body == 'Palmolive'
       respond nil
     else
+      #sleep 3
       $stderr.puts request.body
       respond "#{request.topic}"
     end
