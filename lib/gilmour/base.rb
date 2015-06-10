@@ -76,18 +76,10 @@ module Gilmour
     end
     attr_reader :backends
 
-    def enable_backend(name, opts = {}, multi_process=false)
+    def enable_backend(name, opts = {})
       Gilmour::Backend.load_backend(name)
       @backends ||= {}
       @backends[name] ||= Gilmour::Backend.get(name).new(opts)
-
-      backend = @backends[name]
-
-      if multi_process
-        backend.multi_process = multi_process
-      end
-
-      backend
     end
     alias_method :get_backend, :enable_backend
 
