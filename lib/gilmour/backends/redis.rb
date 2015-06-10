@@ -51,6 +51,7 @@ module Gilmour
         end
         rescue Exception => e
           $stderr.puts e.message
+          $stderr.puts e.backtrace
         end
       end
     end
@@ -77,6 +78,7 @@ module Gilmour
       subscribe_topic(topic)
     rescue Exception => e
       $stderr.puts e.message
+      $stderr.puts e.backtrace
     end
 
     def acquire_ex_lock(sender)
@@ -95,6 +97,7 @@ module Gilmour
       end
     rescue Exception => e
       $stderr.puts e.message
+      $stderr.puts e.backtrace
     end
 
     def send_response(sender, body, code)
@@ -154,6 +157,7 @@ module Gilmour
       end
     rescue Exception => e
       $stderr.puts e.message
+      $stderr.puts e.backtrace
     end
 
     def stop
