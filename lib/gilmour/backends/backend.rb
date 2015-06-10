@@ -5,14 +5,14 @@ module Gilmour
   # Base class for loading backends
   class Backend
     SUPPORTED_BACKENDS = %w(amqp redis)
-    @@dir = {}
+    @@registry = {}
 
-    def self.implements(token)
-      @@dir[token] = self
+    def self.implements(backend_name)
+      @@registry[backend_name] = self
     end
 
-    def self.get(token)
-      @@dir[token]
+    def self.get(backend_name)
+      @@registry[backend_name]
     end
 
     # This should be implemented by the derived class
