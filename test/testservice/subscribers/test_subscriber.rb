@@ -30,7 +30,7 @@ class TestSubscriber < TestServiceBase
 
   listen_to Republish do
     resp = self
-    publish(request.body, 'test.topic') do |data, code|
+    publish(request.body, Topic) do |data, code|
       resp.respond data, 200, now: true
     end
   end

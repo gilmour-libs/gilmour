@@ -45,6 +45,7 @@ describe 'TestSubscriber' do
       end
       @service.start
     end
+
     context 'Handler Register' do
       When { install_test_subscriber(subscriber) }
       context 'Check registered handlers' do
@@ -74,7 +75,7 @@ describe 'TestSubscriber' do
           waiter = install_test_subscriber(TestServiceBase)
           redis_publish_async(connection_opts,
                               ping_opts[:message],
-                              'test.topic')
+                              TestSubscriber::Topic)
           waiter.join
         end
         Then do
@@ -99,15 +100,42 @@ describe 'TestSubscriber' do
       end
     end
 
-    context 'Send and receive a message' do
-      Given(:ping_opts) { amqp_ping_options }
+    context 'Publish sans subscriber timeout' do
+      Given(:ping_opts) do
+        redis_ping_options
+      end
+
       When(:sub) do
         Gilmour::RedisBackend.new({})
       end
       When(:response) do
         waiter = Thread.new { loop { sleep 1 } }
         data = code = nil
-        sub.publish(ping_opts[:message], 'test.topic', { confirm_subscriber: true }) do |d, c|
+        sub.publish(ping_opts[:message], "hello.world") do |d, c|
+          data = d
+          code = c
+          waiter.kill
+        end
+        waiter.join(5)
+        [data, code]
+      end
+      Then do
+        data, code = response
+        data.should be == nil
+        code.should be == nil
+      end
+
+    end
+
+    context 'Send and receive a message' do
+      Given(:ping_opts) { redis_ping_options }
+      When(:sub) do
+        Gilmour::RedisBackend.new({})
+      end
+      When(:response) do
+        waiter = Thread.new { loop { sleep 1 } }
+        data = code = nil
+        sub.publish(ping_opts[:message], TestSubscriber::Topic, { confirm_subscriber: true }) do |d, c|
           data = d
           code = c
           waiter.kill
@@ -119,6 +147,42 @@ describe 'TestSubscriber' do
         data, code = response
         data.should be == ping_opts[:response]
         code.should be == 200
+      end
+    end
+
+    context 'Send once, Receive twice' do
+      group_return = "group_return"
+      group_topic = "test.group"
+
+      Given(:ping_opts) { redis_ping_options }
+      When(:sub) do
+        Gilmour::RedisBackend.new({})
+      end
+      When (:response) do
+        waiter = Thread.new { loop { sleep 1 } }
+
+        actual_ret = 0
+        expected_ret = 2
+
+        2.times do
+          sub.add_listener group_topic do
+            publish(request.body, group_return)
+          end
+        end
+
+        sub.add_listener group_return do
+          actual_ret += 1
+          waiter.kill if actual_ret >= expected_ret
+        end
+
+        sub.publish(ping_opts[:message], group_topic)
+
+        waiter.join
+        [actual_ret, expected_ret]
+      end
+      Then do
+        actual_ret, expected_ret = response
+        actual_ret.should be == expected_ret
       end
     end
 
@@ -145,5 +209,7 @@ describe 'TestSubscriber' do
       end
       And { expect(EM.reactor_thread.alive?).to be_truthy }
     end
+
+
   end
 end
