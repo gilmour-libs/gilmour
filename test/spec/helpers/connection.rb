@@ -88,7 +88,7 @@ def redis_send_and_recv(options, message, key)
   operation = proc do
     redis = EM::Hiredis.connect
     payload, sender = Gilmour::Protocol.create_request(message)
-    response_topic = "response.#{sender}"
+    response_topic = "gilmour.response.#{sender}"
     redis.pubsub.subscribe(response_topic)
     redis.pubsub.on(:message) do |topic, data|
       begin

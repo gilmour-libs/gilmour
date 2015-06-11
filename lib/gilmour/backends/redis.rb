@@ -31,8 +31,11 @@ module Gilmour
 
     def setup_pubsub(opts)
       @publisher = EM::Hiredis.connect(redis_host(opts))
-      @subscriber = @publisher.pubsub
+      @subscriber = @publisher.pubsub_client
       register_handlers
+    rescue Exception => e
+      $stderr.puts e.message
+      $stderr.puts e.backtrace
     end
 
     def register_handlers
@@ -40,10 +43,15 @@ module Gilmour
         pmessage_handler(key, topic, payload)
       end
       @subscriber.on(:message) do |topic, payload|
-        if topic.start_with? 'response.'
+        begin
+        if topic.start_with? 'gilmour.response.'
           response_handler(topic, payload)
         else
           pmessage_handler(topic, topic, payload)
+        end
+        rescue Exception => e
+          $stderr.puts e.message
+          $stderr.puts e.backtrace
         end
       end
     end
@@ -55,14 +63,22 @@ module Gilmour
 
     def pmessage_handler(key, matched_topic, payload)
       @subscriptions[key].each do |subscription|
-        execute_handler(matched_topic, payload, subscription)
+        EM.defer(->{execute_handler(matched_topic, payload, subscription)})
       end
     end
 
-    def register_response(sender, handler)
-      topic = "response.#{sender}"
-      @response_handlers[topic] = handler
+    def register_response(sender, handler, timeout = 600)
+      topic = "gilmour.response.#{sender}"
+      timer = EM::Timer.new(timeout) do # Simulate error response
+        $stderr.puts "Killing handler for #{sender}"
+        payload, _ = Gilmour::Protocol.create_request({}, 504)
+        response_handler(topic, payload)
+      end
+      @response_handlers[topic] = {handler: handler, timer: timer}
       subscribe_topic(topic)
+    rescue Exception => e
+      $stderr.puts e.message
+      $stderr.puts e.backtrace
     end
 
     def acquire_ex_lock(sender)
@@ -73,12 +89,19 @@ module Gilmour
 
     def response_handler(sender, payload)
       data, code, _ = Gilmour::Protocol.parse_response(payload)
-      handler = @response_handlers[sender]
+      handler = @response_handlers.delete(sender)
+      @subscriber.unsubscribe(sender)
       if handler
-        handler.call(data, code)
-        @subscriber.unsubscribe(sender)
-        @response_handlers.delete(sender)
+        handler[:timer].cancel
+        handler[:handler].call(data, code)
       end
+    rescue Exception => e
+      $stderr.puts e.message
+      $stderr.puts e.backtrace
+    end
+
+    def send_response(sender, body, code)
+      publish(body, "gilmour.response.#{sender}", {}, code)
     end
 
     def setup_subscribers(subs = {})
@@ -89,6 +112,10 @@ module Gilmour
     end
 
     def add_listener(topic, &handler)
+      if @multi_process
+        raise Exception.new("Forking does not allow dynamic listeners.")
+      end
+
       @subscriptions[topic] ||= []
       @subscriptions[topic] << { handler: handler }
       subscribe_topic(topic)
@@ -104,9 +131,41 @@ module Gilmour
       @subscriber.unsubscribe(topic) if @subscriptions[topic].empty?
     end
 
-    def send(sender, destination, payload)
-      register_response(sender, Proc.new) if block_given?
+    def send(sender, destination, payload, opts = {}, &blk)
+      timeout = opts[:timeout] || 600
+      if opts[:confirm_subscriber]
+        confirm_subscriber(destination) do |present|
+          if !present
+            blk.call(nil, 404) if blk
+          else
+            _send(sender, destination, payload, timeout, &blk)
+          end
+        end
+      else
+        _send(sender, destination, payload, timeout, &blk)
+      end
+    rescue Exception => e
+      $stderr.puts e.message
+      $stderr.puts e.backtrace
+    end
+
+    def _send(sender, destination, payload, timeout, &blk)
+      register_response(sender, blk, timeout) if block_given?
       @publisher.publish(destination, payload)
+      sender
+    end
+
+    def confirm_subscriber(dest, &blk)
+      res = @publisher.pubsub('numsub', dest) do |_, num|
+        blk.call(num.to_i > 0)
+      end
+    rescue Exception => e
+      $stderr.puts e.message
+      $stderr.puts e.backtrace
+    end
+
+    def stop
+      @subscriber.close_connection
     end
   end
 end

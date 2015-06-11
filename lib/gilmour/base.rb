@@ -1,4 +1,12 @@
 # encoding: utf-8
+# This is required to check whether Mash class already exists
+def class_exists?(class_name)
+  klass = Module.const_get(class_name)
+  return klass.is_a?(Class)
+rescue NameError
+  return false
+end
+
 require 'securerandom'
 require 'json'
 require 'mash' unless class_exists? 'Mash'
@@ -71,7 +79,15 @@ module Gilmour
     def enable_backend(name, opts = {})
       Gilmour::Backend.load_backend(name)
       @backends ||= {}
-      @backends[name] ||= Backend.get(name).new(opts)
+      @backends[name] ||= Gilmour::Backend.get(name).new(opts)
+
+      backend = @backends[name]
+
+      if opts["multi_process"] || opts[:multi_process]
+        backend.multi_process = true
+      end
+
+      backend
     end
     alias_method :get_backend, :enable_backend
 
