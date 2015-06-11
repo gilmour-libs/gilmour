@@ -162,15 +162,17 @@ describe 'TestSubscriber' do
 
         sub.add_listener TestSubscriber::GroupReturn do
           actual_ret.push(request.body)
+          waiter.kill if actual_ret.length == 2
         end
 
         sub.publish(ping_opts[:message], TestSubscriber::GroupTopic)
 
-        waiter.join(5)
+        waiter.join
         actual_ret
       end
       Then do
-        response.should be == [ping_opts[:message], ping_opts[:message]]
+        expected = [ping_opts[:message], 2]
+        response.should be == expected + expected
       end
     end
 
@@ -186,11 +188,12 @@ describe 'TestSubscriber' do
 
         sub.add_listener TestSubscriber::GroupReturn do
           actual_ret.push(request.body)
+          waiter.kill if actual_ret.length == 1
         end
 
         sub.publish(ping_opts[:message], TestSubscriber::ExclusiveTopic)
 
-        waiter.join(5)
+        waiter.join
         actual_ret
       end
       Then do
