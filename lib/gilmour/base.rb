@@ -43,6 +43,10 @@ module Gilmour
       end
 
       def listen_to(topic, excl = false)
+        if @multi_process
+          raise Exception.new("Forking does not allow dynamic listeners.")
+        end
+
         handler = Proc.new
         @@subscribers[topic] ||= []
         @@subscribers[topic] << { handler: handler, subscriber: self , exclusive: excl}
@@ -83,8 +87,8 @@ module Gilmour
 
       backend = @backends[name]
 
-      if opts[:multi_process]
-        backend.multi_process = multi_process
+      if opts["multi_process"] || opts[:multi_process]
+        backend.multi_process = true
       end
 
       backend

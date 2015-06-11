@@ -55,6 +55,7 @@ module Gilmour
         _execute_handler(topic, data, sender, sub)
       end
       rescue Exception => e
+        $stderr.puts e.message
         $stderr.puts e.backtrace
 
     end

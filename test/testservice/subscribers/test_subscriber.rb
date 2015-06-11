@@ -25,6 +25,7 @@ class TestSubscriber < TestServiceBase
   2.times do
     listen_to GroupTopic do
       publish(request.body, TestSubscriber::GroupReturn)
+      publish("2", TestSubscriber::GroupReturn)
     end
   end
 
@@ -36,8 +37,10 @@ class TestSubscriber < TestServiceBase
   end
 
   listen_to WildcardTopic do
-    TestSubscriber.get_callback.call(request.topic, request.body)
-    nil
+    if TestSubscriber.get_callback
+      TestSubscriber.get_callback.call(request.topic, request.body)
+    end
+    respond request.body, 200
   end
 
   listen_to Simulation do |topic, data|
