@@ -148,12 +148,26 @@ describe 'TestSubscriberFork' do
       Then do
         waiter = Thread.new { loop { sleep 1 } }
         code = nil
-        sub.publish(ping_opts[:message], 'test.republish') do |d, c|
+        sub.publish(ping_opts[:message], TestSubscriber::Republish) do |d, c|
           code = c
           waiter.kill
         end
         waiter.join()
         expect(code).to eq(500)
+      end
+    end
+
+    context 'Error in child registration' do
+      Given(:ping_opts) { redis_ping_options }
+      When(:sub) do
+        @service.get_backend("redis")
+      end
+      Then do
+        expect {
+          sub.add_listener TestSubscriber::Topic do |t, d|
+            puts t, d
+          end
+        }.to raise_error
       end
     end
 
