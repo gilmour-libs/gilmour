@@ -151,9 +151,6 @@ describe 'TestSubscriber' do
     end
 
     context 'Send once, Receive twice' do
-      group_return = "group_return"
-      group_topic = "test.group"
-
       Given(:ping_opts) { redis_ping_options }
       When(:sub) do
         Gilmour::RedisBackend.new({})
@@ -162,26 +159,42 @@ describe 'TestSubscriber' do
         waiter = Thread.new { loop { sleep 1 } }
 
         actual_ret = []
-        expected_ret = 2
 
-        expected_ret.times do
-          sub.add_listener group_topic do
-            publish(request.body, group_return)
-          end
-        end
-
-        sub.add_listener group_return do
+        sub.add_listener TestSubscriber::GroupReturn do
           actual_ret.push(request.body)
-          waiter.kill if actual_ret.length >= expected_ret
         end
 
-        sub.publish(ping_opts[:message], group_topic)
+        sub.publish(ping_opts[:message], TestSubscriber::GroupTopic)
 
-        waiter.join
+        waiter.join(5)
         actual_ret
       end
       Then do
         response.should be == [ping_opts[:message], ping_opts[:message]]
+      end
+    end
+
+    context 'Send once, Receive Once' do
+      Given(:ping_opts) { redis_ping_options }
+      When(:sub) do
+        Gilmour::RedisBackend.new({})
+      end
+      When (:response) do
+        waiter = Thread.new { loop { sleep 1 } }
+
+        actual_ret = []
+
+        sub.add_listener TestSubscriber::GroupReturn do
+          actual_ret.push(request.body)
+        end
+
+        sub.publish(ping_opts[:message], TestSubscriber::ExclusiveTopic)
+
+        waiter.join(5)
+        actual_ret
+      end
+      Then do
+        response.should be == [0]
       end
     end
 

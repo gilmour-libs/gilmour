@@ -3,6 +3,10 @@ class TestSubscriber < TestServiceBase
   WildcardTopic = 'test.wildcard.*'
   Simulation = 'simulate.topic'
   Republish = 'test.republish'
+  GroupReturn = "group_return"
+  GroupTopic = "test.group"
+  ExclusiveTopic = "test.exclusive"
+
 
   def self.get_callback
     @callback
@@ -10,6 +14,18 @@ class TestSubscriber < TestServiceBase
 
   def self.callback
     @callback = Proc.new
+  end
+
+  2.times do |i|
+    listen_to ExclusiveTopic, true do
+      publish(i, TestSubscriber::GroupReturn)
+    end
+  end
+
+  2.times do
+    listen_to GroupTopic do
+      publish(request.body, TestSubscriber::GroupReturn)
+    end
   end
 
   listen_to Topic do
