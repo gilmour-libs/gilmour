@@ -7,6 +7,8 @@ module Gilmour
     SUPPORTED_BACKENDS = %w(amqp redis)
     @@registry = {}
 
+    attr_accessor :multi_process
+
     def self.implements(backend_name)
       @@registry[backend_name] = self
     end
@@ -52,6 +54,10 @@ module Gilmour
       else
         _execute_handler(topic, data, sender, sub)
       end
+      rescue Exception => e
+        $stderr.puts e.message
+        $stderr.puts e.backtrace
+
     end
 
     def _execute_handler(topic, data, sender, sub)

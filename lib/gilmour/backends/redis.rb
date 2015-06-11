@@ -31,7 +31,7 @@ module Gilmour
 
     def setup_pubsub(opts)
       @publisher = EM::Hiredis.connect(redis_host(opts))
-      @subscriber = @publisher.pubsub
+      @subscriber = @publisher.pubsub_client
       register_handlers
     rescue Exception => e
       $stderr.puts e.message
@@ -51,6 +51,7 @@ module Gilmour
         end
         rescue Exception => e
           $stderr.puts e.message
+          $stderr.puts e.backtrace
         end
       end
     end
@@ -77,6 +78,7 @@ module Gilmour
       subscribe_topic(topic)
     rescue Exception => e
       $stderr.puts e.message
+      $stderr.puts e.backtrace
     end
 
     def acquire_ex_lock(sender)
@@ -95,6 +97,7 @@ module Gilmour
       end
     rescue Exception => e
       $stderr.puts e.message
+      $stderr.puts e.backtrace
     end
 
     def send_response(sender, body, code)
@@ -109,6 +112,10 @@ module Gilmour
     end
 
     def add_listener(topic, &handler)
+      if @multi_process
+        raise Exception.new("Forking does not allow dynamic listeners.")
+      end
+
       @subscriptions[topic] ||= []
       @subscriptions[topic] << { handler: handler }
       subscribe_topic(topic)
@@ -154,6 +161,7 @@ module Gilmour
       end
     rescue Exception => e
       $stderr.puts e.message
+      $stderr.puts e.backtrace
     end
 
     def stop

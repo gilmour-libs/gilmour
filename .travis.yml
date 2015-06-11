@@ -1,0 +1,16 @@
+language: ruby
+
+rvm:
+  - 2.1.5
+
+services:
+  - redis-server
+
+install:
+  - bundle install
+
+script:
+  - cd test/
+  - bundle exec rspec spec/test_service_base.rb -b --format documentation
+  - bundle exec rspec spec/test_subscriber_redis.rb -b --format documentation
+  - bundle exec rspec spec/test_subscriber_redis_forked.rb -b --format documentation
