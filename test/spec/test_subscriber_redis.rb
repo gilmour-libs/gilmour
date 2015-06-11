@@ -164,7 +164,7 @@ describe 'TestSubscriber' do
         actual_ret = 0
         expected_ret = 2
 
-        2.times do
+        expected_ret.times do
           sub.add_listener group_topic do
             publish(request.body, group_return)
           end
