@@ -119,9 +119,11 @@ module Gilmour
         msg = JSON.generate([destination, message])
         @write_publish_pipe.write(msg+"\n")
         @write_publish_pipe.flush
-      else
+      elsif block_given?
         blk = Proc.new
         @backend.publish(message, destination, opts, &blk)
+      else
+        @backend.publish(message, destination, opts)
       end
     end
 
