@@ -171,7 +171,7 @@ describe 'TestSubscriber' do
         actual_ret
       end
       Then do
-        expected = [ping_opts[:message], 2]
+        expected = [ping_opts[:message], "2"]
         response.should be == expected + expected
       end
     end
