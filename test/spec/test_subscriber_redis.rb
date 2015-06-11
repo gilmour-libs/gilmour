@@ -161,7 +161,7 @@ describe 'TestSubscriber' do
       When (:response) do
         waiter = Thread.new { loop { sleep 1 } }
 
-        actual_ret = 0
+        actual_ret = []
         expected_ret = 2
 
         expected_ret.times do
@@ -171,18 +171,17 @@ describe 'TestSubscriber' do
         end
 
         sub.add_listener group_return do
-          actual_ret += 1
-          waiter.kill if actual_ret >= expected_ret
+          actual_ret.push(request.body)
+          waiter.kill if actual_ret.length >= expected_ret
         end
 
         sub.publish(ping_opts[:message], group_topic)
 
         waiter.join
-        [actual_ret, expected_ret]
+        actual_ret
       end
       Then do
-        actual_ret, expected_ret = response
-        actual_ret.should be == expected_ret
+        response.should be == [ping_opts[:message], ping_opts[:message]]
       end
     end
 
