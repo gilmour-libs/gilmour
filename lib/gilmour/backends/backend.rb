@@ -18,6 +18,7 @@ module Gilmour
       @@registry[backend_name]
     end
 
+    # :nodoc:
     # This should be implemented by the derived class
     # subscriptions is a hash in the format -
     # { topic => [handler1, handler2, ...],
@@ -31,10 +32,33 @@ module Gilmour
     def setup_subscribers(subscriptions)
     end
 
+    # Sends a message
+    # If optional block is given, it will be executed when a response is received
+    # or if timeout occurs
+    # +message+:: The body of the message (any object that is serialisable)
+    # +destination+:: The channel to post to
+    # +opts+::
+    #   ++timeout+:: Sender side timeout
+    # 
+    def publish(message, destination, opts = {}, code = 0, &blk)
+      payload, sender = Gilmour::Protocol.create_request(message, code)
+      EM.defer do # Because publish can be called from outside the event loop
+        begin
+          send(sender, destination, payload, opts, &blk)
+        rescue Exception => e
+          GLogger.debug e.message
+          GLogger.debug e.backtrace
+        end
+      end
+    end
+
+
+    # Adds a new handler for the given _topic_
     def add_listener(topic, &handler)
       raise "Not implemented by child class"
     end
 
+    # Removes existing _handler_ for the _topic_
     def remove_listener(topic, &handler)
       raise "Not implemented by child class"
     end
@@ -63,21 +87,6 @@ module Gilmour
 
     def _execute_handler(topic, data, sender, sub)
       Gilmour::Responder.new(sender, topic, data, self).execute(sub[:handler])
-    end
-
-    # If optional block is given, it will be passed to the child class
-    # implementation of 'send'. The implementation can execute the block
-    # on a response to the published message
-    def publish(message, destination, opts = {}, code = 0, &blk)
-      payload, sender = Gilmour::Protocol.create_request(message, code)
-      EM.defer do # Because publish can be called from outside the event loop
-        begin
-          send(sender, destination, payload, opts, &blk)
-        rescue Exception => e
-          GLogger.debug e.message
-          GLogger.debug e.backtrace
-        end
-      end
     end
 
     def send

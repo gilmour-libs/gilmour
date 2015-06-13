@@ -4,6 +4,8 @@
 module Gilmour
   # The Responder module that provides the request and respond
   # DSL
+  # The public methods in this class are available to be called
+  # from the body of the handlers directly
   class Responder
     attr_reader :request
 
@@ -27,10 +29,14 @@ module Gilmour
       @backend.send_response(sender, data, code)
     end
 
+    # Adds a dynamic listener for _topic_
     def add_listener(topic, &handler)
       @backend.add_listener(topic, &handler)
     end
 
+    # Sends a response with _body_ and _code_
+    # If +opts[:now]+ is true, the response is sent immediately,
+    # else it is defered until the handler finishes executing
     def respond(body, code = 200, opts = {})
       @response[:data] = body
       @response[:code] = code
@@ -41,6 +47,7 @@ module Gilmour
     end
 
     # Called by parent
+    # :nodoc:
     def execute(handler)
       if @multi_process
         @read_pipe = @pipe[0]
@@ -97,6 +104,7 @@ module Gilmour
     end
 
     # Called by child
+    # :nodoc:
     def _execute(handler)
       begin
         instance_eval(&handler)
@@ -106,10 +114,9 @@ module Gilmour
         @response[:code] = 500
       end
       send_response if @response[:code]
-      #[@response[:data], @response[:code]]
     end
 
-    # Todo: pipe publisher as well
+    # Publishes a message. See Backend::publish
     def publish(message, destination, opts = {})
       if @multi_process
         if block_given?
@@ -129,6 +136,7 @@ module Gilmour
     end
 
     # Called by child
+    # :nodoc:
     def send_response
       return if @response_sent
       @response_sent = true

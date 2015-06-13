@@ -50,20 +50,30 @@ module Gilmour
       @@subscribers = {} # rubocop:disable all
       @@registered_services = []
 
+      # :nodoc:
       def inherited(child)
         @@registered_services << child
       end
 
+
+      # Returns the subscriber classes registered
       def registered_subscribers
         @@registered_services
       end
 
+      # Adds a listener for the given topic
+      # topic:: The topic to listen to
+      # excl:: If true, this listener is added to a group of listeners with the
+      #        same name as the name of the class in which this method is called.
+      #        A message sent to the _topic_ will be processed by at most one listener
+      #        from a group 
       def listen_to(topic, excl = false)
         handler = Proc.new
         @@subscribers[topic] ||= []
         @@subscribers[topic] << { handler: handler, subscriber: self , exclusive: excl}
       end
 
+      # Returns the list of subscribers for _topic_ or all subscribers if it is nil
       def subscribers(topic = nil)
         if topic
           @@subscribers[topic]
@@ -72,16 +82,21 @@ module Gilmour
         end
       end
 
+      # Loads all ruby source files inside _dir_ as subscribers
+      # Should only be used inside the parent container class
       def load_all(dir = nil)
         dir ||= (subscribers_path || DEFAULT_SUBSCRIBER_PATH)
         Dir["#{dir}/*.rb"].each { |f| require f }
       end
 
+      # Loads the ruby file at _path_ as a subscriber
+      # Should only be used inside the parent container class
       def load_subscriber(path)
         require path
       end
     end
 
+    # :nodoc:
     def registered_subscribers
       self.class.registered_subscribers
     end
@@ -92,6 +107,10 @@ module Gilmour
     end
     attr_reader :backends
 
+    # Enable and return the given backend
+    # Should only be used inside the parent container class
+    # If +opts[:multi_process]+ is true, every request handler will
+    # be run inside a new child process.
     def enable_backend(name, opts = {})
       Gilmour::Backend.load_backend(name)
       @backends ||= {}
@@ -107,6 +126,22 @@ module Gilmour
     end
     alias_method :get_backend, :enable_backend
 
+    # Starts all the listeners
+    # If _startloop_ is true, this method will start it's own
+    # event loop and not return till Eventmachine reactor is stopped
+    def start(startloop = false)
+      subs_by_backend = subs_grouped_by_backend
+      subs_by_backend.each do |b, subs|
+        get_backend(b).setup_subscribers(subs)
+      end
+      if startloop
+        GLogger.debug 'Joining EM event loop'
+        EM.reactor_thread.join
+      end
+    end
+
+    private
+
     def subs_grouped_by_backend
       subs_by_backend = {}
       self.class.subscribers.each do |topic, subs|
@@ -117,17 +152,6 @@ module Gilmour
         end
       end
       subs_by_backend
-    end
-
-    def start(startloop = false)
-      subs_by_backend = subs_grouped_by_backend
-      subs_by_backend.each do |b, subs|
-        get_backend(b).setup_subscribers(subs)
-      end
-      if startloop
-        GLogger.debug 'Joining EM event loop'
-        EM.reactor_thread.join
-      end
     end
   end
 end
