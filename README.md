@@ -1,9 +1,8 @@
 # Gilmour
 
 Gilmour is a framework for writing micro-services that exchange data over
-non-http transports. Currently supported backends are AMQP and Redis PubSub.
-In both cases, topics (in case of AMQP) and channels (in case of Redis) are
-used like "routes".
+non-http transports. Currently the supported backend is Redis PubSub.
+Redis pubsub channels are used like "routes".
 The DSL provided is similar to Sinatra.
 
 ## Protocol
@@ -27,6 +26,7 @@ See the `examples` directory for examples of usage
 
 ## Specs
 
-To run the specs, modify `test/spec/helpers/amqp.yml` to point to your rabbitmq or redis server.
+To run the specs, set `REDIS_HOST` (default is localhost) and `REDIS_PORT` (default is 6379)
+to point to your rabbitmq or redis server.
 Then, from within the `test` directory, run `rspec spec/*`
 

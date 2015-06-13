@@ -4,8 +4,8 @@ require 'gilmour'
 class EventServer
   include Gilmour::Base
 
-  def initialize(backend)
-    enable_backend(backend, { host: 'localhost', exchange: 'fib' })
+  def initialize
+    enable_backend('redis', { })
     registered_subscribers.each do |sub|
       sub.backend = backend
     end
@@ -43,16 +43,4 @@ class FibonacciSubscriber < EventServer
 
 end
 
-def usage(s)
-  $stderr.puts(s)
-  $stderr.puts("Usage: #{File.basename($0)} [backend to use: 'redis' or 'amqp']")
-  exit(2)
-end
-
-usage("Please specify backend to use") if ARGV.length < 1
-backend = ARGV[0]
-unless backend == 'redis' || backend == 'amqp'
-  usage("Unknown backend #{backend}")
-end
-
-EventServer.new backend
+EventServer.new

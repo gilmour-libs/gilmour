@@ -35,5 +35,6 @@ def fork_and_run(num)
 end
 
 fork_and_run(5) do |i|
+  # Start echo server first
   redis_send_and_recv('Ping', 'echo', i)
 end
