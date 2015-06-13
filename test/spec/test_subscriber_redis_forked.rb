@@ -3,6 +3,7 @@ require 'rspec/given'
 require 'securerandom'
 require './testservice/test_service_base'
 
+require_relative 'helpers/common'
 require_relative 'helpers/connection'
 
 describe 'TestSubscriberFork' do
@@ -106,7 +107,8 @@ describe 'TestSubscriberFork' do
       end
       Then do
         expected = [ping_opts[:message], "2"]
-        response.should be == expected + expected
+        response.select { |e| e == ping_opts[:message] }.size.should == 2
+        response.select { |e| e == "2" }.size.should == 2
       end
     end
 
@@ -130,7 +132,7 @@ describe 'TestSubscriberFork' do
         actual_ret
       end
       Then do
-        response.should be == [0]
+        response.size.should == 1
       end
     end
   end
