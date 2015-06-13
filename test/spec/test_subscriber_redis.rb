@@ -3,20 +3,15 @@ require 'rspec/given'
 require 'securerandom'
 require './testservice/test_service_base'
 
+require_relative 'helpers/common'
 require_relative 'helpers/connection'
 
-RSpec.configure do |config|
-  config.expect_with :rspec do |c|
-    c.syntax = [:should, :expect]
-  end
-end
-
 def install_test_subscriber(parent)
-  waiter = Thread.new { loop { sleep 1 } }
+  waiter = Waiter.new
   TestSubscriber.callback do |topic, data|
     @topic = topic
     @data = data
-    waiter.kill
+    waiter.signal
   end
   waiter
 end
@@ -76,7 +71,7 @@ describe 'TestSubscriber' do
           redis_publish_async(connection_opts,
                               ping_opts[:message],
                               TestSubscriber::Topic)
-          waiter.join
+          waiter.wait
         end
         Then do
           @data.should be == ping_opts[:message]
@@ -93,7 +88,7 @@ describe 'TestSubscriber' do
           redis_publish_async(connection_opts,
                               wildcard_opts[:message],
                               wildcard_opts[:topic])
-          waiter.join
+          waiter.wait
         end
         Then { @data.should == wildcard_opts[:message] }
         And  { @topic.should == wildcard_opts[:topic] }
@@ -109,14 +104,14 @@ describe 'TestSubscriber' do
         Gilmour::RedisBackend.new({})
       end
       When(:response) do
-        waiter = Thread.new { loop { sleep 1 } }
+        waiter = Waiter.new
         data = code = nil
         sub.publish(ping_opts[:message], "hello.world") do |d, c|
           data = d
           code = c
-          waiter.kill
+          waiter.signal
         end
-        waiter.join(5)
+        waiter.wait(5)
         [data, code]
       end
       Then do
@@ -133,14 +128,14 @@ describe 'TestSubscriber' do
         Gilmour::RedisBackend.new({})
       end
       When(:response) do
-        waiter = Thread.new { loop { sleep 1 } }
+        waiter = Waiter.new
         data = code = nil
         sub.publish(ping_opts[:message], TestSubscriber::Topic, { confirm_subscriber: true }) do |d, c|
           data = d
           code = c
-          waiter.kill
+          waiter.signal
         end
-        waiter.join
+        waiter.wait
         [data, code]
       end
       Then do
@@ -156,23 +151,23 @@ describe 'TestSubscriber' do
         Gilmour::RedisBackend.new({})
       end
       When (:response) do
-        waiter = Thread.new { loop { sleep 1 } }
+        waiter = Waiter.new
 
         actual_ret = []
 
         sub.add_listener TestSubscriber::GroupReturn do
           actual_ret.push(request.body)
-          waiter.kill if actual_ret.length == 2
+          waiter.signal if actual_ret.length == 2
         end
 
         sub.publish(ping_opts[:message], TestSubscriber::GroupTopic)
-
-        waiter.join
+        waiter.wait
         actual_ret
       end
       Then do
         expected = [ping_opts[:message], "2"]
-        response.should be == expected + expected
+        response.select { |e| e == ping_opts[:message] }.size.should == 2
+        response.select { |e| e == "2" }.size.should == 2
       end
     end
 
@@ -182,22 +177,21 @@ describe 'TestSubscriber' do
         Gilmour::RedisBackend.new({})
       end
       When (:response) do
-        waiter = Thread.new { loop { sleep 1 } }
-
+        waiter = Waiter.new
         actual_ret = []
 
         sub.add_listener TestSubscriber::GroupReturn do
           actual_ret.push(request.body)
-          waiter.kill if actual_ret.length == 1
+          waiter.signal if actual_ret.length == 1
         end
 
         sub.publish(ping_opts[:message], TestSubscriber::ExclusiveTopic)
 
-        waiter.join
+        waiter.wait
         actual_ret
       end
       Then do
-        response.should be == [0]
+        response.size.should == 1
       end
     end
 
@@ -208,13 +202,13 @@ describe 'TestSubscriber' do
       end
       When (:response) do
         data = code = nil
-        waiter = Thread.new { loop { sleep 1 } }
+        waiter = Waiter.new
         sub.publish(ping_opts[:message], 'test.republish') do |d, c|
           data = d
           code = c
-          waiter.kill
+          waiter.signal
         end
-        waiter.join
+        waiter.wait
         [data, code]
       end
       Then do
@@ -224,7 +218,5 @@ describe 'TestSubscriber' do
       end
       And { expect(EM.reactor_thread.alive?).to be_truthy }
     end
-
-
   end
 end

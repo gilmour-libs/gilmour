@@ -5,12 +5,6 @@ require './testservice/test_service_base'
 
 require_relative 'helpers/connection'
 
-RSpec.configure do |config|
-  config.expect_with :rspec do |c|
-    c.syntax = [:should, :expect]
-  end
-end
-
 describe 'TestSubscriberFork' do
   opts = redis_connection_options
   opts["multi_process"] = true
@@ -48,14 +42,14 @@ describe 'TestSubscriberFork' do
         Gilmour::RedisBackend.new({})
       end
       When(:response) do
-        waiter = Thread.new { loop { sleep 1 } }
+        waiter = Waiter.new
         data = code = nil
         sub.publish(ping_opts[:message], TestSubscriber::Topic, { confirm_subscriber: true }) do |d, c|
           data = d
           code = c
-          waiter.kill
+          waiter.signal
         end
-        waiter.join
+        waiter.wait
         [data, code]
       end
       Then do
@@ -73,15 +67,15 @@ describe 'TestSubscriberFork' do
       When(:response) do
         data = code = nil
 
-        waiter = Thread.new { loop { sleep 1 } }
+        waiter = Waiter.new
 
         sub.publish(wildcard_opts[:message], wildcard_opts[:topic]) do |d,c|
           data = d
           code = 200
-          waiter.kill
+          waiter.signal
         end
 
-        waiter.join
+        waiter.wait
         [data, code]
       end
       Then do
@@ -97,7 +91,7 @@ describe 'TestSubscriberFork' do
         Gilmour::RedisBackend.new({})
       end
       When (:response) do
-        waiter = Thread.new { loop { sleep 1 } }
+        waiter = Waiter.new
 
         actual_ret = []
 
@@ -107,7 +101,7 @@ describe 'TestSubscriberFork' do
 
         sub.publish(ping_opts[:message], TestSubscriber::GroupTopic)
 
-        waiter.join(5)
+        waiter.wait(5)
         actual_ret
       end
       Then do
@@ -122,7 +116,7 @@ describe 'TestSubscriberFork' do
         Gilmour::RedisBackend.new({})
       end
       When (:response) do
-        waiter = Thread.new { loop { sleep 1 } }
+        waiter = Waiter.new
 
         actual_ret = []
 
@@ -132,7 +126,7 @@ describe 'TestSubscriberFork' do
 
         sub.publish(ping_opts[:message], TestSubscriber::ExclusiveTopic)
 
-        waiter.join(5)
+        waiter.wait(5)
         actual_ret
       end
       Then do

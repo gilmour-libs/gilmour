@@ -34,7 +34,7 @@ def redis_publish_async(options, message, key)
 end
 
 def redis_send_and_recv(options, message, key)
-  waiter = Thread.new { loop { sleep 1 } }
+  waiter = Waiter.new
   response = code = nil
   operation = proc do
     redis = EM::Hiredis.connect
@@ -44,7 +44,7 @@ def redis_send_and_recv(options, message, key)
     redis.pubsub.on(:message) do |topic, data|
       begin
         response, code, _ = Gilmour::Protocol.parse_response(data)
-        waiter.kill
+        waiter.signal
       rescue Exception => e
         $stderr.puts e.message
       end
@@ -52,7 +52,7 @@ def redis_send_and_recv(options, message, key)
     redis.publish(key, payload)
   end
   EM.defer(operation)
-  waiter.join
+  waiter.wait
   [response, code]
 end
 
