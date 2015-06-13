@@ -118,7 +118,8 @@ module Gilmour
 
     def add_listener(topic, &handler)
       if @multi_process
-        raise Exception.new("Forking does not allow dynamic listeners.")
+        GLogger.error "Dynamic listeners using add_listener not supported\
+                       in forked responder. Ignoring!"
       end
 
       @subscriptions[topic] ||= []

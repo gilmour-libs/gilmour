@@ -133,20 +133,5 @@ describe 'TestSubscriberFork' do
         response.should be == [0]
       end
     end
-
-    context 'Error in child registration' do
-      Given(:ping_opts) { redis_ping_options }
-      When(:sub) do
-        @service.get_backend("redis")
-      end
-      Then do
-        expect {
-          sub.add_listener TestSubscriber::Topic do |t, d|
-            puts t, d
-          end
-        }.to raise_error
-      end
-    end
-
   end
 end
