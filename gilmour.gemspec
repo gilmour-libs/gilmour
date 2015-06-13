@@ -16,7 +16,7 @@ Gem::Specification.new do |s|
 	s.add_development_dependency "rspec-given"
 	s.add_dependency "mash"
 	s.add_dependency "redis"
-	s.add_dependency "em-hiredis"
+	s.add_dependency "gilmour-em-hiredis"
 	s.add_dependency "amqp"
 
 	s.files         = `git ls-files`.split("\n")
