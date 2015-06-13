@@ -34,8 +34,8 @@ module Gilmour
       @subscriber = @publisher.pubsub_client
       register_handlers
     rescue Exception => e
-      $stderr.puts e.message
-      $stderr.puts e.backtrace
+      GLogger.debug e.message
+      GLogger.debug e.backtrace
     end
 
     def register_handlers
@@ -50,8 +50,8 @@ module Gilmour
           pmessage_handler(topic, topic, payload)
         end
         rescue Exception => e
-          $stderr.puts e.message
-          $stderr.puts e.backtrace
+          GLogger.debug e.message
+          GLogger.debug e.backtrace
         end
       end
     end
@@ -70,15 +70,15 @@ module Gilmour
     def register_response(sender, handler, timeout = 600)
       topic = "gilmour.response.#{sender}"
       timer = EM::Timer.new(timeout) do # Simulate error response
-        $stderr.puts "Killing handler for #{sender}"
+        GLogger.info "Timeout: Killing handler for #{sender}"
         payload, _ = Gilmour::Protocol.create_request({}, 504)
         response_handler(topic, payload)
       end
       @response_handlers[topic] = {handler: handler, timer: timer}
       subscribe_topic(topic)
     rescue Exception => e
-      $stderr.puts e.message
-      $stderr.puts e.backtrace
+      GLogger.debug e.message
+      GLogger.debug e.backtrace
     end
 
     def acquire_ex_lock(sender)
@@ -96,8 +96,8 @@ module Gilmour
         handler[:handler].call(data, code)
       end
     rescue Exception => e
-      $stderr.puts e.message
-      $stderr.puts e.backtrace
+      GLogger.debug e.message
+      GLogger.debug e.backtrace
     end
 
     def send_response(sender, body, code)
@@ -145,8 +145,8 @@ module Gilmour
         _send(sender, destination, payload, timeout, &blk)
       end
     rescue Exception => e
-      $stderr.puts e.message
-      $stderr.puts e.backtrace
+      GLogger.debug e.message
+      GLogger.debug e.backtrace
     end
 
     def _send(sender, destination, payload, timeout, &blk)
@@ -160,8 +160,8 @@ module Gilmour
         blk.call(num.to_i > 0)
       end
     rescue Exception => e
-      $stderr.puts e.message
-      $stderr.puts e.backtrace
+      GLogger.debug e.message
+      GLogger.debug e.backtrace
     end
 
     def stop

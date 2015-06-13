@@ -7,6 +7,7 @@ rescue NameError
   return false
 end
 
+require 'logger'
 require 'securerandom'
 require 'json'
 require 'mash' unless class_exists? 'Mash'
@@ -17,6 +18,21 @@ require_relative 'backends/backend'
 
 # The Gilmour module
 module Gilmour
+
+  LoggerLevels = {
+    unknown: Logger::UNKNOWN,
+    fatal: Logger::FATAL,
+    error: Logger::ERROR,
+    warn: Logger::WARN,
+    info: Logger::INFO,
+    debug: Logger::DEBUG
+  }
+
+
+  GLogger = Logger.new(STDERR)
+  EnvLoglevel =  ENV["LOG_LEVEL"] ? ENV["LOG_LEVEL"].to_sym : :warn
+  GLogger.level = LoggerLevels[EnvLoglevel] || Logger::WARN
+
   RUNNING = false
   # This is the base module that should be included into the
   # container class
@@ -109,7 +125,7 @@ module Gilmour
         get_backend(b).setup_subscribers(subs)
       end
       if startloop
-        $stderr.puts 'Joining EM event loop'
+        GLogger.debug 'Joining EM event loop'
         EM.reactor_thread.join
       end
     end

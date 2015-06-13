@@ -1,6 +1,7 @@
 # encoding: utf-8
 
 require_relative '../protocol'
+
 module Gilmour
   # Base class for loading backends
   class Backend
@@ -55,8 +56,8 @@ module Gilmour
         _execute_handler(topic, data, sender, sub)
       end
       rescue Exception => e
-        $stderr.puts e.message
-        $stderr.puts e.backtrace
+        GLogger.debug e.message
+        GLogger.debug e.backtrace
 
     end
 
@@ -73,8 +74,8 @@ module Gilmour
         begin
           send(sender, destination, payload, opts, &blk)
         rescue Exception => e
-          $stderr.puts e.message
-          $stderr.puts e.message
+          GLogger.debug e.message
+          GLogger.debug e.backtrace
         end
       end
     end

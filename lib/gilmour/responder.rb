@@ -79,8 +79,8 @@ module Gilmour
         begin
           receive_data(@read_pipe.readline)
         rescue EOFError => e
-          $stderr.puts e.message
-          $stderr.puts "EOFError caught in responder.rb, because of nil response"
+          GLogger.debug e.message
+          GLogger.debug "EOFError caught in responder.rb, because of nil response"
         end
 
         Process.waitpid(pid)
@@ -101,8 +101,8 @@ module Gilmour
       begin
         instance_eval(&handler)
       rescue Exception => e
-        $stderr.puts e.message
-        $stderr.puts e.backtrace
+        GLogger.info e.message
+        GLogger.info e.backtrace
         @response[:code] = 500
       end
       send_response if @response[:code]
@@ -113,7 +113,8 @@ module Gilmour
     def publish(message, destination, opts = {})
       if @multi_process
         if block_given?
-          raise Exception.new("Publish Callback is not supported in forked mode.")
+          GLogger.error "Publish callback not supported in forked responder. Ignoring!"
+#          raise Exception.new("Publish Callback is not supported in forked mode.")
         end
 
         msg = JSON.generate([destination, message])
