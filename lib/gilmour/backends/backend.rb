@@ -5,7 +5,7 @@ require_relative '../protocol'
 module Gilmour
   # Base class for loading backends
   class Backend
-    SUPPORTED_BACKENDS = %w(amqp redis)
+    SUPPORTED_BACKENDS = %w(redis)
     @@registry = {}
 
     attr_accessor :multi_process
