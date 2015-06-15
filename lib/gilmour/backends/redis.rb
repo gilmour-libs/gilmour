@@ -19,18 +19,20 @@ module Gilmour
     def initialize(opts)
       @response_handlers = {}
       @subscriptions = {}
+      done = false
       wait_m = Mutex.new
       wait_c = ConditionVariable.new
       Thread.new do
         EM.run do
           setup_pubsub(opts)
           wait_m.synchronize {
+            done = true
             wait_c.signal
           }
         end
       end
       wait_m.synchronize {
-        wait_c.wait(wait_m)
+        wait_c.wait(wait_m) unless done
       }
     end
 
