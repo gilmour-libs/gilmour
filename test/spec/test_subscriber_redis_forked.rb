@@ -37,6 +37,56 @@ describe 'TestSubscriberFork' do
       @service.start
     end
 
+    context 'Handler sleeps longer than the Timeout' do
+      Given(:ping_opts) do
+        redis_ping_options
+      end
+
+      When(:sub) do
+        Gilmour::RedisBackend.new({})
+      end
+      When(:code) do
+        waiter = Waiter.new
+        code = nil
+
+        sub.publish(4, TestSubscriber::TimeoutTopic) do |d, c|
+          code = c
+          waiter.signal
+        end
+
+        waiter.wait
+        code
+      end
+      Then do
+        code.should be == 409
+      end
+    end
+
+    context 'Handler sleeps just enough to survive the timeout' do
+      Given(:ping_opts) do
+        redis_ping_options
+      end
+
+      When(:sub) do
+        Gilmour::RedisBackend.new({})
+      end
+      When(:code) do
+        waiter = Waiter.new
+        code = nil
+
+        sub.publish(1, TestSubscriber::TimeoutTopic) do |d, c|
+          code = c
+          waiter.signal
+        end
+
+        waiter.wait
+        code
+      end
+      Then do
+        code.should be == 200
+      end
+    end
+
     context 'Send and receive a message' do
       Given(:ping_opts) { redis_ping_options }
       When(:sub) do
@@ -106,7 +156,6 @@ describe 'TestSubscriberFork' do
         actual_ret
       end
       Then do
-        expected = [ping_opts[:message], "2"]
         response.select { |e| e == ping_opts[:message] }.size.should == 2
         response.select { |e| e == "2" }.size.should == 2
       end
