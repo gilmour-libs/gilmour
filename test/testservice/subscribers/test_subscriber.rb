@@ -1,4 +1,5 @@
 class TestSubscriber < TestServiceBase
+  TimeoutTopic = "test.timeout"
   Topic = 'test.topic'
   WildcardTopic = 'test.wildcard.*'
   Simulation = 'simulate.topic'
@@ -17,7 +18,7 @@ class TestSubscriber < TestServiceBase
   end
 
   2.times do |i|
-    listen_to ExclusiveTopic, true do
+    listen_to ExclusiveTopic, {exclusive: true} do
       publish(i, TestSubscriber::GroupReturn)
     end
   end
@@ -27,6 +28,13 @@ class TestSubscriber < TestServiceBase
       publish(request.body, TestSubscriber::GroupReturn)
       publish("2", TestSubscriber::GroupReturn)
     end
+  end
+
+  listen_to TimeoutTopic, {exclusive: false, timeout: 2} do
+    data, _, _ = Gilmour::Protocol.parse_response(request.body)
+    puts "Will sleep for #{data} seconds now. But allowed timeout is 2."
+    sleep data
+    respond 'Pong!'
   end
 
   listen_to Topic do
