@@ -39,7 +39,7 @@ module Gilmour
     # +destination+:: The channel to post to
     # +opts+::
     #   ++timeout+:: Sender side timeout
-    # 
+    #
     def publish(message, destination, opts = {}, code = 0, &blk)
       payload, sender = Gilmour::Protocol.create_request(message, code)
       EM.defer do # Because publish can be called from outside the event loop
@@ -86,7 +86,8 @@ module Gilmour
     end
 
     def _execute_handler(topic, data, sender, sub)
-      Gilmour::Responder.new(sender, topic, data, self).execute(sub[:handler])
+      Gilmour::Responder.new(sender, topic, data, self).execute(
+          sub[:handler], sub[:timeout])
     end
 
     def send

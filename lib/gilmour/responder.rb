@@ -48,7 +48,7 @@ module Gilmour
 
     # Called by parent
     # :nodoc:
-    def execute(handler)
+    def execute(handler, timeout)
       if @multi_process
         @read_pipe = @pipe[0]
         @write_pipe = @pipe[1]
@@ -62,7 +62,7 @@ module Gilmour
           @read_pipe.close
           @read_publish_pipe.close
           @response_sent = false
-          _execute(handler)
+          _execute(handler, timeout)
         end
 
         @write_pipe.close
@@ -78,7 +78,8 @@ module Gilmour
                 destination, message = JSON.parse(data)
                 @backend.publish(message, destination)
               end
-            rescue EOFError => e
+            rescue EOFError
+              # awkward blank rescue block
             end
           }
         }
@@ -99,15 +100,21 @@ module Gilmour
         @read_pipe.close
         @read_publish_pipe.close
       else
-        _execute(handler)
+        _execute(handler, timeout)
       end
     end
 
     # Called by child
     # :nodoc:
-    def _execute(handler)
+    def _execute(handler, timeout=600)
       begin
-        instance_eval(&handler)
+        Timeout.timeout(timeout) do
+          instance_eval(&handler)
+        end
+      rescue Timeout::Error => e
+        GLogger.warn e.message
+        GLogger.warn e.backtrace
+        @response[:code] = 409
       rescue Exception => e
         GLogger.info e.message
         GLogger.info e.backtrace
