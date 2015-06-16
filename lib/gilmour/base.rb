@@ -63,14 +63,32 @@ module Gilmour
 
       # Adds a listener for the given topic
       # topic:: The topic to listen to
-      # excl:: If true, this listener is added to a group of listeners with the
-      #        same name as the name of the class in which this method is called.
-      #        A message sent to the _topic_ will be processed by at most one listener
-      #        from a group 
-      def listen_to(topic, excl = false)
+      # opts: Hash of optional arguments.
+      #       Supported options are:
+      #
+      #       excl:: If true, this listener is added to a group of listeners
+      #       with the same name as the name of the class in which this method
+      #       is called. A message sent to the _topic_ will be processed by at
+      #       most one listener from a group
+      #
+      #       timeout: Maximum duration (seconds) that a subscriber has to
+      #       finish the task. If the execution exceeds the timeout, gilmour
+      #       responds with status {code:409, data: nil}
+      #
+      def listen_to(topic, opts={})
         handler = Proc.new
+
+        sub_data = {
+          exclusive: false,
+          timeout: 600
+        }.merge(opts)
+
+        #Make sure these are not overriden by opts.
+        sub_data[:handler] = handler
+        sub_data[:subscriber] = self
+
         @@subscribers[topic] ||= []
-        @@subscribers[topic] << { handler: handler, subscriber: self , exclusive: excl}
+        @@subscribers[topic] << sub_data
       end
 
       # Returns the list of subscribers for _topic_ or all subscribers if it is nil
