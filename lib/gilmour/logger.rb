@@ -18,6 +18,6 @@ class GilmourLogger
 
   private
   def method_missing(method, *args, &block)
-    @subject.send(method, *args, &block)
+    @logger.send(method, *args, &block)
   end
 end
