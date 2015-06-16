@@ -7,31 +7,19 @@ rescue NameError
   return false
 end
 
-require 'logger'
 require 'securerandom'
 require 'json'
 require 'mash' unless class_exists? 'Mash'
 require 'eventmachine'
+
+require_relative 'logger'
 require_relative 'protocol'
 require_relative 'responder'
 require_relative 'backends/backend'
 
 # The Gilmour module
 module Gilmour
-
-  LoggerLevels = {
-    unknown: Logger::UNKNOWN,
-    fatal: Logger::FATAL,
-    error: Logger::ERROR,
-    warn: Logger::WARN,
-    info: Logger::INFO,
-    debug: Logger::DEBUG
-  }
-
-
-  GLogger = Logger.new(STDERR)
-  EnvLoglevel =  ENV["LOG_LEVEL"] ? ENV["LOG_LEVEL"].to_sym : :warn
-  GLogger.level = LoggerLevels[EnvLoglevel] || Logger::WARN
+  GLogger = GilmourLogger.new()
 
   RUNNING = false
   # This is the base module that should be included into the
