@@ -108,7 +108,11 @@ module Gilmour
           logger.debug "EOFError caught in responder.rb, because of nil response"
         end
 
-        Process.waitpid(pid)
+        pid, status = Process.waitpid2(pid)
+        if status.exitstatus > 0
+          msg = "Child Process #{pid} exited with status #{status.exitstatus}"
+          write_response(@sender, msg, 500)
+        end
 
         pub_mutex.synchronize do
           pub_reader.kill

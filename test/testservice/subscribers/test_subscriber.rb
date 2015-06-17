@@ -7,6 +7,7 @@ class TestSubscriber < TestServiceBase
   GroupReturn = "group_return"
   GroupTopic = "test.group"
   ExclusiveTopic = "test.exclusive"
+  ExitTopic = "topic.exit"
 
 
   def self.get_callback
@@ -35,6 +36,12 @@ class TestSubscriber < TestServiceBase
     puts "Will sleep for #{data} seconds now. But allowed timeout is 2."
     sleep data
     respond 'Pong!'
+  end
+
+  listen_to ExitTopic do
+    puts "Sleeping for 2 seconds, and then will exit"
+    sleep 2
+    exit!
   end
 
   listen_to Topic do

@@ -37,6 +37,31 @@ describe 'TestSubscriberFork' do
       @service.start
     end
 
+    context 'Handler to Test exits' do
+      Given(:ping_opts) do
+        redis_ping_options
+      end
+
+      When(:sub) do
+        Gilmour::RedisBackend.new({})
+      end
+      When(:code) do
+        waiter = Waiter.new
+        code = nil
+
+        sub.publish(1, TestSubscriber::ExitTopic) do |d, c|
+          code = c
+          waiter.signal
+        end
+
+        waiter.wait
+        code
+      end
+      Then do
+        code.should be == 500
+      end
+    end
+
     context 'Handler sleeps longer than the Timeout' do
       Given(:ping_opts) do
         redis_ping_options
