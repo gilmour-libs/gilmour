@@ -1,13 +1,28 @@
 # encoding: utf-8
 
+require "logger"
+
 # Top level module
 module Gilmour
   # The Responder module that provides the request and respond
   # DSL
   # The public methods in this class are available to be called
   # from the body of the handlers directly
+
   class Responder
+    attr_reader :logger
     attr_reader :request
+
+    def getLogger
+      logger = Logger.new(STDERR)
+      original_formatter = Logger::Formatter.new
+      logger.formatter = proc do |severity, datetime, progname, msg|
+        log_msg = original_formatter.call(severity, datetime, @sender, msg)
+        @log_stack.push(log_msg)
+        log_msg
+      end
+      logger
+    end
 
     def initialize(sender, topic, data, backend)
       @sender = sender
@@ -17,6 +32,8 @@ module Gilmour
       @multi_process = backend.multi_process
       @pipe = IO.pipe
       @publish_pipe = IO.pipe
+      @log_stack = []
+      @logger = getLogger()
     end
 
     def receive_data(data)
@@ -87,8 +104,8 @@ module Gilmour
         begin
           receive_data(@read_pipe.readline)
         rescue EOFError => e
-          GLogger.debug e.message
-          GLogger.debug "EOFError caught in responder.rb, because of nil response"
+          logger.debug e.message
+          logger.debug "EOFError caught in responder.rb, because of nil response"
         end
 
         Process.waitpid(pid)
@@ -104,6 +121,10 @@ module Gilmour
       end
     end
 
+    def emit_error
+      @backend.emit_error @log_stack
+    end
+
     # Called by child
     # :nodoc:
     def _execute(handler, timeout=600)
@@ -112,13 +133,15 @@ module Gilmour
           instance_eval(&handler)
         end
       rescue Timeout::Error => e
-        GLogger.warn e.message
-        GLogger.warn e.backtrace
+        logger.error e.message
+        logger.warn e.backtrace
         @response[:code] = 409
+        emit_error
       rescue Exception => e
-        GLogger.info e.message
-        GLogger.info e.backtrace
+        logger.info e.message
+        logger.info e.backtrace
         @response[:code] = 500
+        emit_error
       end
       send_response if @response[:code]
     end
@@ -127,7 +150,7 @@ module Gilmour
     def publish(message, destination, opts = {})
       if @multi_process
         if block_given?
-          GLogger.error "Publish callback not supported in forked responder. Ignoring!"
+          logger.error "Publish callback not supported in forked responder. Ignoring!"
 #          raise Exception.new("Publish Callback is not supported in forked mode.")
         end
 

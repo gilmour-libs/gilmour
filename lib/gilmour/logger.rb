@@ -18,6 +18,7 @@ class GilmourLogger
 
   private
   def method_missing(method, *args, &block)
+    $stderr.puts "Fwding GLogger: #{method} - #{args}"
     @logger.send(method, *args, &block)
   end
 end

@@ -175,5 +175,11 @@ module Gilmour
     def stop
       @subscriber.close_connection
     end
+
+    def emit_error(log_stack)
+      puts "=================="
+      puts log_stack
+    end
+
   end
 end
