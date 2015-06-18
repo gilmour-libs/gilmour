@@ -74,10 +74,15 @@ describe 'TestSubscriber' do
         waiter = Waiter.new
         code = nil
 
-        sub.publish(4, TestSubscriber::TimeoutTopic) do |d, c|
-          puts "Response"
-          code = c
+        sub.add_listener Gilmour::ErrorChannel do
+          puts "==========================="
+          puts request.body
+          puts "==========================="
           waiter.signal
+        end
+
+        sub.publish(4, TestSubscriber::TimeoutTopic) do |d, c|
+          code = c
         end
 
         waiter.wait

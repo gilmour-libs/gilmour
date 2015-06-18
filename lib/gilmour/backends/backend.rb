@@ -3,6 +3,8 @@
 require_relative '../protocol'
 
 module Gilmour
+  ErrorChannel = "gilmour.error"
+
   # Base class for loading backends
   class Backend
     SUPPORTED_BACKENDS = %w(redis)
