@@ -61,7 +61,7 @@ describe 'TestSubscriberFork' do
           end
         end
 
-        waiter.wait
+        waiter.wait(5)
         dynamicaly_subscribed
       end
       Then do
@@ -96,8 +96,8 @@ describe 'TestSubscriberFork' do
           waiter_code.signal
         end
 
-        waiter_code.wait
-        waiter_error.wait
+        waiter_code.wait(5)
+        waiter_error.wait(5)
 
         sub.remove_listener Gilmour::ErrorChannel, error_listener_proc
         backend.broadcast_errors = false
@@ -120,12 +120,12 @@ describe 'TestSubscriberFork' do
         waiter = Waiter.new
         code = nil
 
-        sub.publish(4, TestSubscriber::TimeoutTopic) do |d, c|
+        sub.publish(3, TestSubscriber::TimeoutTopic) do |d, c|
           code = c
           waiter.signal
         end
 
-        waiter.wait
+        waiter.wait(5)
         code
       end
       Then do
@@ -150,7 +150,7 @@ describe 'TestSubscriberFork' do
           waiter.signal
         end
 
-        waiter.wait
+        waiter.wait(5)
         code
       end
       Then do
@@ -171,7 +171,7 @@ describe 'TestSubscriberFork' do
           code = c
           waiter.signal
         end
-        waiter.wait
+        waiter.wait(5)
         [data, code]
       end
       Then do
@@ -197,7 +197,7 @@ describe 'TestSubscriberFork' do
           waiter.signal
         end
 
-        waiter.wait
+        waiter.wait(5)
         [data, code]
       end
       Then do

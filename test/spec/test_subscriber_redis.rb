@@ -83,7 +83,7 @@ describe 'TestSubscriber' do
           end
         end
 
-        waiter.wait
+        waiter.wait(5)
         dynamicaly_subscribed
       end
       Then do
@@ -113,13 +113,13 @@ describe 'TestSubscriber' do
           waiter_error.signal
         end
 
-        sub.publish(4, TestSubscriber::TimeoutTopic) do |d, c|
+        sub.publish(3, TestSubscriber::TimeoutTopic) do |d, c|
           code = c
           waiter_code.signal
         end
 
-        waiter_code.wait
-        waiter_error.wait
+        waiter_code.wait(5)
+        waiter_error.wait(5)
 
         backend.broadcast_errors = false
         code
@@ -146,7 +146,7 @@ describe 'TestSubscriber' do
           waiter.signal
         end
 
-        waiter.wait
+        waiter.wait(5)
         code
       end
       Then do
@@ -163,7 +163,7 @@ describe 'TestSubscriber' do
           redis_publish_async(connection_opts,
                               ping_opts[:message],
                               TestSubscriber::Topic)
-          waiter.wait
+          waiter.wait(5)
         end
         Then do
           @data.should be == ping_opts[:message]
@@ -180,7 +180,7 @@ describe 'TestSubscriber' do
           redis_publish_async(connection_opts,
                               wildcard_opts[:message],
                               wildcard_opts[:topic])
-          waiter.wait
+          waiter.wait(5)
         end
         Then { @data.should == wildcard_opts[:message] }
         And  { @topic.should == wildcard_opts[:topic] }
@@ -227,7 +227,7 @@ describe 'TestSubscriber' do
           code = c
           waiter.signal
         end
-        waiter.wait
+        waiter.wait(5)
         [data, code]
       end
       Then do
@@ -253,7 +253,7 @@ describe 'TestSubscriber' do
         end
 
         sub.publish(ping_opts[:message], TestSubscriber::GroupTopic)
-        waiter.wait
+        waiter.wait(5)
 
         sub.remove_listener TestSubscriber::GroupReturn, group_proc
         actual_ret
@@ -280,7 +280,7 @@ describe 'TestSubscriber' do
 
         sub.publish(ping_opts[:message], TestSubscriber::ExclusiveTopic)
 
-        waiter.wait
+        waiter.wait(5)
         sub.remove_listener TestSubscriber::GroupReturn, group_proc
         actual_ret
       end
@@ -302,7 +302,7 @@ describe 'TestSubscriber' do
           code = c
           waiter.signal
         end
-        waiter.wait
+        waiter.wait(5)
         [data, code]
       end
       Then do
