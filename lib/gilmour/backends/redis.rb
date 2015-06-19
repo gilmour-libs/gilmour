@@ -34,6 +34,7 @@ module Gilmour
       wait_m.synchronize {
         wait_c.wait(wait_m) unless done
       }
+      super
     end
 
     def setup_pubsub(opts)

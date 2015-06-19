@@ -10,7 +10,18 @@ module Gilmour
     SUPPORTED_BACKENDS = %w(redis)
     @@registry = {}
 
+    attr_accessor :catch_errors
     attr_accessor :multi_process
+
+    def initialize(opts={})
+      if opts["multi_process"] || opts[:multi_process]
+        self.multi_process = true
+      end
+
+      if opts["catch_errors"] || opts[:catch_errors]
+        self.catch_errors = true
+      end
+    end
 
     def self.implements(backend_name)
       @@registry[backend_name] = self
@@ -114,7 +125,9 @@ module Gilmour
     # This may or may not have a listener based on the configuration
     # supplied at setup.
     def emit_error(log_stack)
-      puts publish(log_stack, Gilmour::ErrorChannel, {}, 500)
+      if self.catch_errors
+        puts publish(log_stack, Gilmour::ErrorChannel, {}, 500)
+      end
     end
   end
 end

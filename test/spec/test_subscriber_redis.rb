@@ -74,6 +74,8 @@ describe 'TestSubscriber' do
         waiter = Waiter.new
         code = nil
 
+        backend = @service.get_backend("redis")
+        backend.catch_errors = true
         sub.add_listener Gilmour::ErrorChannel do
           puts "==========================="
           puts request.body
@@ -86,6 +88,7 @@ describe 'TestSubscriber' do
         end
 
         waiter.wait
+        backend.catch_errors = false
         code
       end
       Then do

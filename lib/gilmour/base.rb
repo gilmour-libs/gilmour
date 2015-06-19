@@ -114,14 +114,6 @@ module Gilmour
       Gilmour::Backend.load_backend(name)
       @backends ||= {}
       @backends[name] ||= Gilmour::Backend.get(name).new(opts)
-
-      backend = @backends[name]
-
-      if opts["multi_process"] || opts[:multi_process]
-        backend.multi_process = true
-      end
-
-      backend
     end
     alias_method :get_backend, :enable_backend
 
