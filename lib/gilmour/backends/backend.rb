@@ -96,10 +96,6 @@ module Gilmour
       raise "Not implemented by child class"
     end
 
-    def emit_error
-      raise NotImplemented.New()
-    end
-
     def self.load_backend(name)
       require_relative name
     end
