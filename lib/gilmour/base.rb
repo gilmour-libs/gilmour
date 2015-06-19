@@ -1,18 +1,30 @@
 # encoding: utf-8
 # This is required to check whether Mash class already exists
+require 'logger'
 require 'securerandom'
 require 'json'
 require 'mash' unless class_exists? 'Mash'
 require 'eventmachine'
 
-require_relative 'logger'
 require_relative 'protocol'
 require_relative 'responder'
 require_relative 'backends/backend'
 
 # The Gilmour module
 module Gilmour
-  GLogger = GilmourLogger.new()
+  LoggerLevels = {
+    unknown: Logger::UNKNOWN,
+    fatal: Logger::FATAL,
+    error: Logger::ERROR,
+    warn: Logger::WARN,
+    info: Logger::INFO,
+    debug: Logger::DEBUG
+  }
+
+
+  GLogger = Logger.new(STDERR)
+  EnvLoglevel =  ENV["LOG_LEVEL"] ? ENV["LOG_LEVEL"].to_sym : :warn
+  GLogger.level = LoggerLevels[EnvLoglevel] || Logger::WARN
 
   RUNNING = false
   # This is the base module that should be included into the
@@ -59,17 +71,18 @@ module Gilmour
       def listen_to(topic, opts={})
         handler = Proc.new
 
-        sub_data = {
+        opt_defaults = {
           exclusive: false,
-          timeout: 600
+          timeout: 600,
+          fork: false
         }.merge(opts)
 
         #Make sure these are not overriden by opts.
-        sub_data[:handler] = handler
-        sub_data[:subscriber] = self
+        opt_defaults[:handler] = handler
+        opt_defaults[:subscriber] = self
 
         @@subscribers[topic] ||= []
-        @@subscribers[topic] << sub_data
+        @@subscribers[topic] << opt_defaults
       end
 
       # Returns the list of subscribers for _topic_ or all subscribers if it is nil

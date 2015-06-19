@@ -8,7 +8,6 @@ require_relative 'helpers/connection'
 
 describe 'TestSubscriberFork' do
   opts = redis_connection_options
-  opts["multi_process"] = true
 
   test_subscriber_path = './testservice/subscribers/test_subscriber'
   after(:all) do
@@ -16,9 +15,14 @@ describe 'TestSubscriberFork' do
   end
 
   Given(:subscriber) { TestServiceBase }
-  Given {
+  Given do
     subscriber.load_subscriber(test_subscriber_path)
-  }
+    subscriber.subscribers.each do |topic, arr|
+      arr.each do |s|
+        s[:fork] = true
+      end
+    end
+  end
   Then do
     handlers = subscriber.subscribers(TestSubscriber::Topic)
     module_present = handlers.find { |h| h[:subscriber] == TestSubscriber }
@@ -34,7 +38,35 @@ describe 'TestSubscriberFork' do
       @service.registered_subscribers.each do |s|
         s.backend = 'redis'
       end
+
       @service.start
+    end
+
+    context 'Fork not allowed to add dynamic listeners', :fork_dynamic do
+      Given(:ping_opts) do
+        redis_ping_options
+      end
+
+      When(:sub) do
+        Gilmour::RedisBackend.new({})
+      end
+      When(:code) do
+        waiter = Waiter.new
+        dynamicaly_subscribed = 0
+
+        sub.publish(1, TestSubscriber::ReListenTopic) do |d, c|
+          sub.confirm_subscriber("test.world") do |present|
+            dynamicaly_subscribed = present
+            waiter.signal
+          end
+        end
+
+        waiter.wait
+        dynamicaly_subscribed
+      end
+      Then do
+        code.should be == false
+      end
     end
 
     context 'Handler to Test exits' do
@@ -46,15 +78,29 @@ describe 'TestSubscriberFork' do
         Gilmour::RedisBackend.new({})
       end
       When(:code) do
-        waiter = Waiter.new
+        waiter_error = Waiter.new
+        waiter_code = Waiter.new
         code = nil
+
+        backend = @service.get_backend("redis")
+        backend.broadcast_errors = true
+        error_listener_proc = sub.add_listener Gilmour::ErrorChannel do
+          puts "==========================="
+          puts request.body
+          puts "==========================="
+          waiter_error.signal
+        end
 
         sub.publish(1, TestSubscriber::ExitTopic) do |d, c|
           code = c
-          waiter.signal
+          waiter_code.signal
         end
 
-        waiter.wait
+        waiter_code.wait
+        waiter_error.wait
+
+        sub.remove_listener Gilmour::ErrorChannel, error_listener_proc
+        backend.broadcast_errors = false
         code
       end
       Then do

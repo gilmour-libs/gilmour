@@ -13,7 +13,7 @@ module Gilmour
     attr_reader :logger
     attr_reader :request
 
-    def getLogger
+    def make_logger
       logger = Logger.new(STDERR)
       original_formatter = Logger::Formatter.new
       logger.formatter = proc do |severity, datetime, progname, msg|
@@ -24,16 +24,17 @@ module Gilmour
       logger
     end
 
-    def initialize(sender, topic, data, backend)
+    def initialize(sender, topic, data, backend, timeout=600, forked=false)
       @sender = sender
       @request = Mash.new(topic: topic, body: data)
       @response = { data: nil, code: nil }
       @backend = backend
-      @multi_process = backend.multi_process
+      @timeout = timeout || 600
+      @multi_process = forked || false
       @pipe = IO.pipe
       @publish_pipe = IO.pipe
       @log_stack = []
-      @logger = getLogger()
+      @logger = make_logger()
     end
 
     def receive_data(data)
@@ -48,6 +49,11 @@ module Gilmour
 
     # Adds a dynamic listener for _topic_
     def add_listener(topic, &handler)
+      if @multi_process
+        GLogger.error "Dynamic listeners using add_listener not supported \
+        in forked responder. Ignoring!"
+      end
+
       @backend.add_listener(topic, &handler)
     end
 
@@ -65,7 +71,7 @@ module Gilmour
 
     # Called by parent
     # :nodoc:
-    def execute(handler, timeout)
+    def execute(handler)
       if @multi_process
         @read_pipe = @pipe[0]
         @write_pipe = @pipe[1]
@@ -79,7 +85,7 @@ module Gilmour
           @read_pipe.close
           @read_publish_pipe.close
           @response_sent = false
-          _execute(handler, timeout)
+          _execute(handler)
         end
 
         @write_pipe.close
@@ -111,6 +117,8 @@ module Gilmour
         pid, status = Process.waitpid2(pid)
         if status.exitstatus > 0
           msg = "Child Process #{pid} exited with status #{status.exitstatus}"
+          logger.error msg
+          emit_error
           write_response(@sender, msg, 500)
         end
 
@@ -121,7 +129,7 @@ module Gilmour
         @read_pipe.close
         @read_publish_pipe.close
       else
-        _execute(handler, timeout)
+        _execute(handler)
       end
     end
 
@@ -131,9 +139,9 @@ module Gilmour
 
     # Called by child
     # :nodoc:
-    def _execute(handler, timeout=600)
+    def _execute(handler)
       begin
-        Timeout.timeout(timeout) do
+        Timeout.timeout(@timeout) do
           instance_eval(&handler)
         end
       rescue Timeout::Error => e
@@ -154,7 +162,7 @@ module Gilmour
     def publish(message, destination, opts = {})
       if @multi_process
         if block_given?
-          logger.error "Publish callback not supported in forked responder. Ignoring!"
+          GLogger.error "Publish callback not supported in forked responder. Ignoring!"
 #          raise Exception.new("Publish Callback is not supported in forked mode.")
         end
 

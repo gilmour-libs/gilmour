@@ -22,7 +22,9 @@ describe 'TestSubscriber' do
     EM.stop
   end
   Given(:subscriber) { TestServiceBase }
-  Given { subscriber.load_subscriber(test_subscriber_path) }
+  Given do
+    subscriber.load_subscriber(test_subscriber_path)
+  end
   Then do
     handlers = subscriber.subscribers(TestSubscriber::Topic)
     module_present = handlers.find { |h| h[:subscriber] == TestSubscriber }
@@ -62,6 +64,33 @@ describe 'TestSubscriber' do
       end
     end
 
+    context 'Non Fork can add dynamic listeners', :fork_dynamic do
+      Given(:ping_opts) do
+        redis_ping_options
+      end
+
+      When(:sub) do
+        Gilmour::RedisBackend.new({})
+      end
+      When(:code) do
+        waiter = Waiter.new
+        dynamicaly_subscribed = 0
+
+        sub.publish(1, TestSubscriber::ReListenTopic) do |d, c|
+          sub.confirm_subscriber("test.world") do |present|
+            dynamicaly_subscribed = present
+            waiter.signal
+          end
+        end
+
+        waiter.wait
+        dynamicaly_subscribed
+      end
+      Then do
+        code.should be == true
+      end
+    end
+
     context 'Handler sleeps longer than the Timeout' do
       Given(:ping_opts) do
         redis_ping_options
@@ -75,7 +104,7 @@ describe 'TestSubscriber' do
         code = nil
 
         backend = @service.get_backend("redis")
-        backend.catch_errors = true
+        backend.broadcast_errors = true
         sub.add_listener Gilmour::ErrorChannel do
           puts "==========================="
           puts request.body
@@ -88,7 +117,7 @@ describe 'TestSubscriber' do
         end
 
         waiter.wait
-        backend.catch_errors = false
+        backend.broadcast_errors = false
         code
       end
       Then do
@@ -214,13 +243,15 @@ describe 'TestSubscriber' do
 
         actual_ret = []
 
-        sub.add_listener TestSubscriber::GroupReturn do
+        group_proc = sub.add_listener TestSubscriber::GroupReturn do
           actual_ret.push(request.body)
-          waiter.signal if actual_ret.length == 2
+          waiter.signal if actual_ret.length == 4
         end
 
         sub.publish(ping_opts[:message], TestSubscriber::GroupTopic)
         waiter.wait
+
+        sub.remove_listener TestSubscriber::GroupReturn, group_proc
         actual_ret
       end
       Then do
@@ -238,7 +269,7 @@ describe 'TestSubscriber' do
         waiter = Waiter.new
         actual_ret = []
 
-        sub.add_listener TestSubscriber::GroupReturn do
+        group_proc = sub.add_listener TestSubscriber::GroupReturn do
           actual_ret.push(request.body)
           waiter.signal if actual_ret.length == 1
         end
@@ -246,6 +277,7 @@ describe 'TestSubscriber' do
         sub.publish(ping_opts[:message], TestSubscriber::ExclusiveTopic)
 
         waiter.wait
+        sub.remove_listener TestSubscriber::GroupReturn, group_proc
         actual_ret
       end
       Then do

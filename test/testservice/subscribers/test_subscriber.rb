@@ -8,6 +8,7 @@ class TestSubscriber < TestServiceBase
   GroupTopic = "test.group"
   ExclusiveTopic = "test.exclusive"
   ExitTopic = "topic.exit"
+  ReListenTopic = "topic.relisten"
 
 
   def self.get_callback
@@ -42,6 +43,14 @@ class TestSubscriber < TestServiceBase
     puts "Sleeping for 2 seconds, and then will exit"
     sleep 2
     exit!
+  end
+
+  listen_to ReListenTopic do
+    # In forked environment this should not work.
+    add_listener "test.world" do
+      respond "Pong!"
+    end
+    respond "Pong"
   end
 
   listen_to Topic do
