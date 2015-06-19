@@ -100,7 +100,8 @@ describe 'TestSubscriber' do
         Gilmour::RedisBackend.new({})
       end
       When(:code) do
-        waiter = Waiter.new
+        waiter_error = Waiter.new
+        waiter_code = Waiter.new
         code = nil
 
         backend = @service.get_backend("redis")
@@ -109,14 +110,17 @@ describe 'TestSubscriber' do
           puts "==========================="
           puts request.body
           puts "==========================="
-          waiter.signal
+          waiter_error.signal
         end
 
         sub.publish(4, TestSubscriber::TimeoutTopic) do |d, c|
           code = c
+          waiter_code.signal
         end
 
-        waiter.wait
+        waiter_code.wait
+        waiter_error.wait
+
         backend.broadcast_errors = false
         code
       end
