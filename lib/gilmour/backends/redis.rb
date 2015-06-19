@@ -176,13 +176,5 @@ module Gilmour
       @subscriber.close_connection
     end
 
-    # Publish all errors on gilmour.error This may or may not have a listener
-    # based on the configuration supplied at setup.
-    def emit_error(log_stack)
-      puts publish(log_stack, ErrorChannel, {}, 500) do
-        puts "Error happened here"
-      end
-    end
-
   end
 end
