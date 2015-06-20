@@ -120,9 +120,14 @@ module Gilmour
     # Publish all errors on gilmour.error
     # This may or may not have a listener based on the configuration
     # supplied at setup.
-    def emit_error(log_stack)
+    def emit_error(log_stack, extra=nil)
       if self.broadcast_errors
-        puts publish(log_stack, Gilmour::ErrorChannel, {}, 500)
+        extra ||= {}
+        extra[:code] ||= 500
+        extra[:timestamp] = Time.now.getutc
+
+        payload = {:traceback => log_stack, :extra => extra}
+        puts publish(payload, Gilmour::ErrorChannel, {}, 500)
       end
     end
   end

@@ -118,7 +118,7 @@ module Gilmour
         if status.exitstatus > 0
           msg = "Child Process #{pid} exited with status #{status.exitstatus}"
           logger.error msg
-          emit_error
+          emit_error :description => msg
           write_response(@sender, msg, 500)
         end
 
@@ -133,8 +133,16 @@ module Gilmour
       end
     end
 
-    def emit_error
-      @backend.emit_error @log_stack
+    def emit_error(extra={})
+      opts = {
+        :topic => @request.topic,
+        :description => '',
+        :sender => @sender,
+        :multi_process => @multi_process,
+        :code => 500
+      }.merge(extra || {})
+
+      @backend.emit_error @log_stack, opts
     end
 
     # Called by child
@@ -148,12 +156,12 @@ module Gilmour
         logger.error e.message
         logger.warn e.backtrace
         @response[:code] = 409
-        emit_error
+        emit_error :code => 409, :description => e.message
       rescue Exception => e
         logger.info e.message
         logger.info e.backtrace
         @response[:code] = 500
-        emit_error
+        emit_error :description => e.message
       end
       send_response if @response[:code]
     end
