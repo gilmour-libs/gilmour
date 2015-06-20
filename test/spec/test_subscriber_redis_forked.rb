@@ -85,9 +85,6 @@ describe 'TestSubscriberFork' do
         backend = @service.get_backend("redis")
         backend.broadcast_errors = true
         error_listener_proc = sub.add_listener Gilmour::ErrorChannel do
-          puts "==========================="
-          puts request.body
-          puts "==========================="
           waiter_error.signal
         end
 

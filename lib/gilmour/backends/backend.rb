@@ -58,6 +58,7 @@ module Gilmour
           GLogger.debug e.backtrace
         end
       end
+      sender
     end
 
 
@@ -127,7 +128,7 @@ module Gilmour
         extra[:timestamp] = Time.now.getutc
 
         payload = {:traceback => log_stack, :extra => extra}
-        puts publish(payload, Gilmour::ErrorChannel, {}, 500)
+        publish(payload, Gilmour::ErrorChannel, {}, 500)
       end
     end
   end

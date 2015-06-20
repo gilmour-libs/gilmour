@@ -107,9 +107,6 @@ describe 'TestSubscriber' do
         backend = @service.get_backend("redis")
         backend.broadcast_errors = true
         sub.add_listener Gilmour::ErrorChannel do
-          puts "==========================="
-          puts request.body
-          puts "==========================="
           waiter_error.signal
         end
 

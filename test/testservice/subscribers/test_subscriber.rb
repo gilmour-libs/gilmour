@@ -34,13 +34,13 @@ class TestSubscriber < TestServiceBase
 
   listen_to TimeoutTopic, {exclusive: false, timeout: 2} do
     data, _, _ = Gilmour::Protocol.parse_response(request.body)
-    puts "Will sleep for #{data} seconds now. But allowed timeout is 2."
+    logger.info "Will sleep for #{data} seconds now. But allowed timeout is 2."
     sleep data
     respond 'Pong!'
   end
 
   listen_to ExitTopic do
-    puts "Sleeping for 2 seconds, and then will exit"
+    logger.info "Sleeping for 2 seconds, and then will exit"
     sleep 2
     exit!
   end

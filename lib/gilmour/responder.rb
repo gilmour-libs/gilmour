@@ -16,6 +16,8 @@ module Gilmour
     def make_logger
       logger = Logger.new(STDERR)
       original_formatter = Logger::Formatter.new
+      loglevel =  ENV["LOG_LEVEL"] ? ENV["LOG_LEVEL"].to_sym : :warn
+      logger.level = Gilmour::LoggerLevels[loglevel] || Logger::WARN
       logger.formatter = proc do |severity, datetime, progname, msg|
         log_msg = original_formatter.call(severity, datetime, @sender, msg)
         @log_stack.push(log_msg)
@@ -135,7 +137,7 @@ module Gilmour
 
     def emit_error(extra={})
       opts = {
-        :topic => @request.topic,
+        :topic => @request[:topic],
         :description => '',
         :sender => @sender,
         :multi_process => @multi_process,
@@ -158,8 +160,8 @@ module Gilmour
         @response[:code] = 409
         emit_error :code => 409, :description => e.message
       rescue Exception => e
-        logger.info e.message
-        logger.info e.backtrace
+        logger.debug e.message
+        logger.debug e.backtrace
         @response[:code] = 500
         emit_error :description => e.message
       end
