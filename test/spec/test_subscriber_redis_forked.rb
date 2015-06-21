@@ -33,7 +33,7 @@ describe 'TestSubscriberFork' do
     before(:all) do
       @service = TestServiceBase.new(opts, 'redis')
     end
-    Given(:connection_opts) { redis_connection_options }
+    Given(:connection_opts) { opts }
     before(:all) do
       @service.registered_subscribers.each do |s|
         s.backend = 'redis'
