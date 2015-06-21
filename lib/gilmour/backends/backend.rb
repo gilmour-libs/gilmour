@@ -1,4 +1,6 @@
 # encoding: utf-8
+require 'socket'
+require 'securerandom'
 
 require_relative '../protocol'
 
@@ -11,11 +13,31 @@ module Gilmour
     @@registry = {}
 
     attr_accessor :broadcast_errors
+    attr_accessor :essential_topics
+    attr_accessor :health_check
+    attr_accessor :ident
+
+    def generate_ident
+      "#{Socket.gethostname}-pid-#{Process.pid}-uuid-#{SecureRandom.uuid}"
+    end
 
     def initialize(opts={})
+      self.ident = generate_ident
+
       if opts["broadcast_errors"] || opts[:broadcast_errors]
         self.broadcast_errors = true
       end
+
+      self.essential_topics = opts["essential_topics"] || opts[:essential_topics]
+      self.health_check = opts["health_check"] || opts[:health_check]
+    end
+
+    def register_for_health_check
+      raise NotImplementedError.new
+    end
+
+    def register_essential_topics
+      raise NotImplementedError.new
     end
 
     def self.implements(backend_name)

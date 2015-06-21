@@ -136,7 +136,16 @@ module Gilmour
     def start(startloop = false)
       subs_by_backend = subs_grouped_by_backend
       subs_by_backend.each do |b, subs|
-        get_backend(b).setup_subscribers(subs)
+        backend = get_backend(b)
+        backend.setup_subscribers(subs)
+
+        if backend.health_check
+          backend.register_health_check
+          if backend.essential_topics
+            backend.register_essential_topics
+          end
+        end
+
       end
       if startloop
         GLogger.debug 'Joining EM event loop'
