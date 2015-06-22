@@ -79,7 +79,7 @@ module Gilmour
       topic = "gilmour.response.#{sender}"
       timer = EM::Timer.new(timeout) do # Simulate error response
         GLogger.info "Timeout: Killing handler for #{sender}"
-        payload, _ = Gilmour::Protocol.create_request({}, 504)
+        payload, _ = Gilmour::Protocol.create_request({}, 499)
         response_handler(topic, payload)
       end
       @response_handlers[topic] = {handler: handler, timer: timer}

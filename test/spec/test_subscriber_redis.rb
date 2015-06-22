@@ -94,6 +94,31 @@ describe 'TestSubscriber' do
       end
     end
 
+    context 'Publisher side timeout' do
+      Given(:ping_opts) do
+        redis_ping_options
+      end
+
+      When(:sub) do
+        Gilmour::RedisBackend.new({})
+      end
+      When(:code) do
+        code = nil
+        waiter_code = Waiter.new
+
+        sub.publish(3, TestSubscriber::TimeoutTopic, {:timeout => 1}) do |d, c|
+          code = c
+          waiter_code.signal
+        end
+
+        waiter_code.wait(5)
+        code
+      end
+      Then do
+        code.should be == 499
+      end
+    end
+
     context 'Handler sleeps longer than the Timeout' do
       Given(:ping_opts) do
         redis_ping_options
