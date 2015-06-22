@@ -19,7 +19,6 @@ end
 describe 'TestSubscriber' do
   opts = redis_connection_options
   opts[:health_check] = true
-  opts[:essential_topics] = ['test.topic', 'test.group']
 
   test_subscriber_path = './testservice/subscribers/test_subscriber'
   after(:all) do
