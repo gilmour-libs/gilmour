@@ -118,19 +118,6 @@ module Gilmour
       raise "Not implemented by child class"
     end
 
-    # Publish all errors on gilmour.error
-    # This may or may not have a listener based on the configuration
-    # supplied at setup.
-    def emit_error(log_stack, extra=nil)
-      if self.broadcast_errors
-        extra ||= {}
-        extra[:code] ||= 500
-        extra[:timestamp] = Time.now.getutc
-
-        payload = {:traceback => log_stack, :extra => extra}
-        publish(payload, Gilmour::ErrorChannel, {}, 500)
-      end
-    end
   end
 end
 
