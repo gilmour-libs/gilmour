@@ -141,9 +141,6 @@ module Gilmour
 
         if backend.health_check
           backend.register_health_check
-          if backend.essential_topics
-            backend.register_essential_topics
-          end
         end
 
       end

@@ -13,7 +13,6 @@ module Gilmour
     @@registry = {}
 
     attr_accessor :broadcast_errors
-    attr_accessor :essential_topics
     attr_accessor :health_check
     attr_accessor :ident
 
@@ -28,15 +27,10 @@ module Gilmour
         self.broadcast_errors = true
       end
 
-      self.essential_topics = opts["essential_topics"] || opts[:essential_topics]
       self.health_check = opts["health_check"] || opts[:health_check]
     end
 
     def register_for_health_check
-      raise NotImplementedError.new
-    end
-
-    def register_essential_topics
       raise NotImplementedError.new
     end
 

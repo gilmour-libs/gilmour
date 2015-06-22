@@ -209,12 +209,5 @@ module Gilmour
 
     end
 
-    def register_essential_topics
-      seperator = "::"
-      topics = self.essential_topics.join(seperator)
-
-      @publisher.hset RedisTopicsKey, self.ident, topics
-    end
-
   end
 end
