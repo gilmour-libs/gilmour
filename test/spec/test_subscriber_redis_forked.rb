@@ -8,6 +8,7 @@ require_relative 'helpers/connection'
 
 describe 'TestSubscriberFork' do
   opts = redis_connection_options
+  opts[:broadcast_errors] = true
 
   test_subscriber_path = './testservice/subscribers/test_subscriber'
   after(:all) do
@@ -82,9 +83,9 @@ describe 'TestSubscriberFork' do
         waiter_code = Waiter.new
         code = nil
 
-        backend = @service.get_backend("redis")
-        backend.broadcast_errors = true
-        error_listener_proc = sub.add_listener Gilmour::ErrorChannel do
+        #backend = @service.get_backend("redis")
+        #backend.broadcast_errors = true
+        error_listener_proc = sub.add_listener Gilmour::ErrorChannel do |d, c|
           waiter_error.signal
         end
 
@@ -97,7 +98,7 @@ describe 'TestSubscriberFork' do
         waiter_error.wait(5)
 
         sub.remove_listener Gilmour::ErrorChannel, error_listener_proc
-        backend.broadcast_errors = false
+        #backend.broadcast_errors = false
         code
       end
       Then do
@@ -126,7 +127,7 @@ describe 'TestSubscriberFork' do
         code
       end
       Then do
-        code.should be == 409
+        code.should be == 504
       end
     end
 
