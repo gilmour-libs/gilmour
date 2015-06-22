@@ -75,6 +75,7 @@ module Gilmour
     # :nodoc:
     def execute(handler)
       if @multi_process
+        GLogger.debug "Executing #{@sender} in forked moode"
         @read_pipe = @pipe[0]
         @write_pipe = @pipe[1]
 
@@ -120,6 +121,8 @@ module Gilmour
         if status.exitstatus > 0
           msg = "Child Process #{pid} exited with status #{status.exitstatus}"
           logger.error msg
+          # Set the multi-process mode as false, the child has died anyway.
+          @multi_process = false
           emit_error :description => msg
           write_response(@sender, msg, 500)
         end
@@ -144,7 +147,14 @@ module Gilmour
         :code => 500
       }.merge(extra || {})
 
-      @backend.emit_error @log_stack, opts
+      # Publish all errors on gilmour.error
+      # This may or may not have a listener based on the configuration
+      # supplied at setup.
+      if @backend.broadcast_errors
+        opts[:timestamp] = Time.now.getutc
+        payload = {:traceback => @log_stack, :extra => opts}
+        publish(payload, Gilmour::ErrorChannel, {}, 500)
+      end
     end
 
     # Called by child
@@ -157,8 +167,8 @@ module Gilmour
       rescue Timeout::Error => e
         logger.error e.message
         logger.warn e.backtrace
-        @response[:code] = 409
-        emit_error :code => 409, :description => e.message
+        @response[:code] = 504
+        emit_error :code => 504, :description => e.message
       rescue Exception => e
         logger.debug e.message
         logger.debug e.backtrace
@@ -169,14 +179,14 @@ module Gilmour
     end
 
     # Publishes a message. See Backend::publish
-    def publish(message, destination, opts = {})
+    def publish(message, destination, opts = {}, code=nil)
       if @multi_process
         if block_given?
           GLogger.error "Publish callback not supported in forked responder. Ignoring!"
 #          raise Exception.new("Publish Callback is not supported in forked mode.")
         end
 
-        msg = JSON.generate([destination, message])
+        msg = JSON.generate([destination, message, code])
         @write_publish_pipe.write(msg+"\n")
         @write_publish_pipe.flush
       elsif block_given?

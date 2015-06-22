@@ -17,6 +17,10 @@ def install_test_subscriber(parent)
 end
 
 describe 'TestSubscriber' do
+  opts = redis_connection_options
+  opts[:health_check] = true
+  opts[:essential_topics] = ['test.topic', 'test.group']
+
   test_subscriber_path = './testservice/subscribers/test_subscriber'
   after(:all) do
     EM.stop
@@ -33,9 +37,9 @@ describe 'TestSubscriber' do
 
   context 'Running Service' do
     before(:all) do
-      @service = TestServiceBase.new(redis_connection_options, 'redis')
+      @service = TestServiceBase.new(opts, 'redis')
     end
-    Given(:connection_opts) { redis_connection_options }
+    Given(:connection_opts) { opts }
     before(:all) do
       @service.registered_subscribers.each do |s|
         s.backend = 'redis'
@@ -122,7 +126,7 @@ describe 'TestSubscriber' do
         code
       end
       Then do
-        code.should be == 409
+        code.should be == 504
       end
     end
 
