@@ -45,8 +45,8 @@ module Gilmour
       @subscriber = @publisher.pubsub_client
       register_handlers
     rescue Exception => e
-      GLogger.debug e.message
-      GLogger.debug e.backtrace
+      GLogger.error e.message
+      GLogger.error e.backtrace
     end
 
     def register_handlers
@@ -61,8 +61,8 @@ module Gilmour
           pmessage_handler(topic, topic, payload)
         end
         rescue Exception => e
-          GLogger.debug e.message
-          GLogger.debug e.backtrace
+          GLogger.error e.message
+          GLogger.error e.backtrace
         end
       end
     end
@@ -88,8 +88,8 @@ module Gilmour
       @response_handlers[topic] = {handler: handler, timer: timer}
       subscribe_topic(topic)
     rescue Exception => e
-      GLogger.debug e.message
-      GLogger.debug e.backtrace
+      GLogger.error e.message
+      GLogger.error e.backtrace
     end
 
     def acquire_ex_lock(sender)
@@ -107,8 +107,8 @@ module Gilmour
         handler[:handler].call(data, code)
       end
     rescue Exception => e
-      GLogger.debug e.message
-      GLogger.debug e.backtrace
+      GLogger.error e.message
+      GLogger.error e.backtrace
     end
 
     def send_response(sender, body, code)
@@ -152,8 +152,8 @@ module Gilmour
         _send(sender, destination, payload, timeout, &blk)
       end
     rescue Exception => e
-      GLogger.debug e.message
-      GLogger.debug e.backtrace
+      GLogger.error e.message
+      GLogger.error e.backtrace
     end
 
     def _send(sender, destination, payload, timeout, &blk)
@@ -167,8 +167,8 @@ module Gilmour
         blk.call(num.to_i > 0)
       end
     rescue Exception => e
-      GLogger.debug e.message
-      GLogger.debug e.backtrace
+      GLogger.error e.message
+      GLogger.error e.backtrace
     end
 
     def stop

@@ -73,8 +73,8 @@ module Gilmour
         begin
           send(sender, destination, payload, opts, &blk)
         rescue Exception => e
-          GLogger.debug e.message
-          GLogger.debug e.backtrace
+          GLogger.error e.message
+          GLogger.error e.backtrace
         end
       end
       sender
@@ -108,9 +108,8 @@ module Gilmour
         _execute_handler(topic, data, sender, sub)
       end
       rescue Exception => e
-        GLogger.debug e.message
-        GLogger.debug e.backtrace
-
+        GLogger.error e.message
+        GLogger.error e.backtrace
     end
 
     def _execute_handler(topic, data, sender, sub)
