@@ -14,14 +14,17 @@ module Gilmour
 
     attr_accessor :broadcast_errors
     attr_accessor :health_check
-    attr_accessor :ident
+
+    def ident
+      @ident
+    end
 
     def generate_ident
       "#{Socket.gethostname}-pid-#{Process.pid}-uuid-#{SecureRandom.uuid}"
     end
 
     def initialize(opts={})
-      self.ident = generate_ident
+      @ident = generate_ident
 
       if opts["broadcast_errors"] || opts[:broadcast_errors]
         self.broadcast_errors = true
