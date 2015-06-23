@@ -118,7 +118,14 @@ module Gilmour
         end
 
         pid, status = Process.waitpid2(pid)
-        if status.exitstatus > 0
+        if !status
+          msg = "Child Process #{pid} crashed without status."
+          logger.error msg
+          # Set the multi-process mode as false, the child has died anyway.
+          @multi_process = false
+          emit_error :description => msg
+          write_response(@sender, msg, 500)
+        elsif status.exitstatus > 0
           msg = "Child Process #{pid} exited with status #{status.exitstatus}"
           logger.error msg
           # Set the multi-process mode as false, the child has died anyway.
