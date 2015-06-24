@@ -117,8 +117,8 @@ module Gilmour
         _execute_handler(topic, data, sender, sub)
       end
       rescue Exception => e
-        GLogger.error e.message
-        GLogger.error e.backtrace
+        GLogger.debug e.message
+        GLogger.debug e.backtrace
     end
 
     def _execute_handler(topic, data, sender, sub)
