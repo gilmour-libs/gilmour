@@ -113,8 +113,8 @@ module Gilmour
         begin
           receive_data(@read_pipe.readline)
         rescue EOFError => e
-          logger.error e.message
-          logger.error "EOFError caught in responder.rb, because of nil response"
+          logger.debug e.message
+          logger.debug "EOFError caught in responder.rb, because of nil response"
         end
 
         pid, status = Process.waitpid2(pid)
