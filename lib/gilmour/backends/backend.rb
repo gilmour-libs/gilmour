@@ -82,8 +82,8 @@ module Gilmour
         begin
           send(sender, destination, payload, opts, &blk)
         rescue Exception => e
-          GLogger.error e.message
-          GLogger.error e.backtrace
+          GLogger.debug e.message
+          GLogger.debug e.backtrace
         end
       end
       sender
