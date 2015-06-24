@@ -252,6 +252,32 @@ describe 'TestSubscriberFork' do
       end
     end
 
+    context 'Check Exclusive Parallelism' do
+      Given(:ping_opts) { redis_ping_options }
+      When(:sub) do
+        Gilmour::RedisBackend.new({})
+      end
+      When (:response) do
+        waiter = Waiter.new
+
+        actual_ret = []
+
+        sub.add_listener TestSubscriber::ExclusiveTimeoutReturn do
+          actual_ret.push(request.body)
+        end
+
+        sub.publish(3, TestSubscriber::ExclusiveTimeoutTopic)
+        sub.publish(3, TestSubscriber::ExclusiveTimeoutTopic)
+        sub.publish(3, TestSubscriber::ExclusiveTimeoutTopic)
+
+        waiter.wait(5)
+        actual_ret
+      end
+      Then do
+        response.select { |e| e == "2" }.size.should == 3
+      end
+    end
+
     context 'Check Parallelism' do
       Given(:ping_opts) { redis_ping_options }
       When(:sub) do
@@ -272,7 +298,7 @@ describe 'TestSubscriberFork' do
         actual_ret
       end
       Then do
-        response.select { |e| e == "2" }.size.should == 10
+        response.select { |e| e == "2" }.size.should == 3
       end
     end
 
