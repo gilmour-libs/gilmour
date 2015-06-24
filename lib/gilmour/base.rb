@@ -130,6 +130,15 @@ module Gilmour
     end
     alias_method :get_backend, :enable_backend
 
+    def exit!
+      subs_by_backend = subs_grouped_by_backend
+      subs_by_backend.each do |b, subs|
+        backend = get_backend(b)
+        backend.setup_subscribers(subs)
+        backend.unregister_health_check
+      end
+    end
+
     # Starts all the listeners
     # If _startloop_ is true, this method will start it's own
     # event loop and not return till Eventmachine reactor is stopped
@@ -142,8 +151,8 @@ module Gilmour
         if backend.health_check
           backend.register_health_check
         end
-
       end
+
       if startloop
         GLogger.debug 'Joining EM event loop'
         EM.reactor_thread.join

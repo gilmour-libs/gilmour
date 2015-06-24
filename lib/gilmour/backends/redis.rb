@@ -210,7 +210,17 @@ module Gilmour
     end
 
     def unregister_health_check
-      @publisher.hdel RedisHealthKey, self.ident
+      deleted = false
+      @publisher.hdel(RedisHealthKey, self.ident) do
+        deleted = true
+      end
+
+      attempts = 0
+      unless deleted || attempts > 5
+        puts "Waiting for delete operation"
+        attempts += 1
+        sleep 1
+      end
     end
 
   end

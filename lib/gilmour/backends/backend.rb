@@ -25,7 +25,7 @@ module Gilmour
 
     def initialize(opts={})
       self.broadcast_errors = true
-      self.health_check = true
+      self.health_check = false
 
       @ident = generate_ident
 
@@ -33,8 +33,8 @@ module Gilmour
         self.broadcast_errors = false
       end
 
-      if opts["health_check"] == false || opts[:health_check] == false
-        self.health_check = false
+      if opts["health_check"] || opts[:health_check]
+        self.health_check = true
       end
     end
 
