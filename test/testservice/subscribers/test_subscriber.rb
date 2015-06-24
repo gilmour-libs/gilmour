@@ -1,4 +1,6 @@
 class TestSubscriber < TestServiceBase
+  MultiTimeoutTopic = 'test.multitimeout'
+  MultiTimeoutReturn = 'test.multireturn'
   TimeoutTopic = "test.timeout"
   Topic = 'test.topic'
   WildcardTopic = 'test.wildcard.*'
@@ -29,6 +31,16 @@ class TestSubscriber < TestServiceBase
     listen_to GroupTopic do
       publish(request.body, TestSubscriber::GroupReturn)
       publish("2", TestSubscriber::GroupReturn)
+    end
+  end
+
+
+  10.times do
+    listen_to MultiTimeoutTopic, {exclusive: false} do
+      data, _, _ = Gilmour::Protocol.parse_response(request.body)
+      logger.info "Will sleep for #{data} seconds now. But allowed timeout is 2."
+      sleep data
+      publish("2", TestSubscriber::MultiTimeoutReturn)
     end
   end
 
