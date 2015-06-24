@@ -106,6 +106,9 @@ module Gilmour
               end
             rescue EOFError
               # awkward blank rescue block
+            rescue Exception => e
+              GLogger.debug e.message
+              GLogger.debug e.backtrace
             end
           }
         }

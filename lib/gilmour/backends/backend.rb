@@ -88,16 +88,18 @@ module Gilmour
       else
         _execute_handler(topic, data, sender, sub)
       end
-      rescue Exception => e
-        GLogger.debug e.message
-        GLogger.debug e.backtrace
-
+    rescue Exception => e
+      GLogger.debug e.message
+      GLogger.debug e.backtrace
     end
 
     def _execute_handler(topic, data, sender, sub)
       Gilmour::Responder.new(
         sender, topic, data, self, sub[:timeout], sub[:fork]
       ).execute(sub[:handler])
+    rescue Exception => e
+      GLogger.debug e.message
+      GLogger.debug e.backtrace
     end
 
     def send
