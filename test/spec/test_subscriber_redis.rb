@@ -18,11 +18,9 @@ end
 
 describe 'TestSubscriber' do
   opts = redis_connection_options
-  opts['health_check'] = true
 
   test_subscriber_path = './testservice/subscribers/test_subscriber'
   after(:all) do
-    puts "Stopping EM"
     EM.stop
   end
   Given(:subscriber) { TestServiceBase }
@@ -46,9 +44,6 @@ describe 'TestSubscriber' do
         s.backend = 'redis'
       end
       @service.start
-    end
-    after(:all) do
-      @service.exit!
     end
 
     context 'Handler Register' do
