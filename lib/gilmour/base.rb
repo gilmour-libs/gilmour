@@ -135,7 +135,9 @@ module Gilmour
       subs_by_backend.each do |b, subs|
         backend = get_backend(b)
         backend.setup_subscribers(subs)
-        backend.unregister_health_check
+        if backend.health_check
+          backend.unregister_health_check
+        end
       end
     end
 
