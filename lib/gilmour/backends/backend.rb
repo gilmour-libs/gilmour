@@ -24,16 +24,25 @@ module Gilmour
     end
 
     def initialize(opts={})
+      self.broadcast_errors = true
+      self.health_check = true
+
       @ident = generate_ident
 
-      if opts["broadcast_errors"] || opts[:broadcast_errors]
-        self.broadcast_errors = true
+      if opts["broadcast_errors"] == false || opts[:broadcast_errors] == false
+        self.broadcast_errors = false
       end
 
-      self.health_check = opts["health_check"] || opts[:health_check]
+      if opts["health_check"] == false || opts[:health_check] == false
+        self.health_check = false
+      end
     end
 
-    def register_for_health_check
+    def register_health_check
+      raise NotImplementedError.new
+    end
+
+    def unregister_health_check
       raise NotImplementedError.new
     end
 

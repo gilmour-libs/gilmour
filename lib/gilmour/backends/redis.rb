@@ -209,5 +209,9 @@ module Gilmour
 
     end
 
+    def unregister_health_check
+      @publisher.hdel RedisHealthKey, self.ident
+    end
+
   end
 end
