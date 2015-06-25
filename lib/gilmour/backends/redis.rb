@@ -4,8 +4,8 @@ require_relative 'backend'
 module Gilmour
   # Redis backend implementation
   class RedisBackend < Backend
-    RedisHealthKey = "known_hosts.health"
-    RedisTopicsKey = "known_hosts.topics"
+    GilmourHealthKey = "gilmour.known_host.health"
+    GilmourErrorBufferLen = 99
 
     implements 'redis'
 
@@ -45,8 +45,8 @@ module Gilmour
       @subscriber = @publisher.pubsub_client
       register_handlers
     rescue Exception => e
-      GLogger.error e.message
-      GLogger.error e.backtrace
+      GLogger.debug e.message
+      GLogger.debug e.backtrace
     end
 
     def register_handlers
@@ -61,8 +61,8 @@ module Gilmour
           pmessage_handler(topic, topic, payload)
         end
         rescue Exception => e
-          GLogger.error e.message
-          GLogger.error e.backtrace
+          GLogger.debug e.message
+          GLogger.debug e.backtrace
         end
       end
     end
@@ -88,8 +88,20 @@ module Gilmour
       @response_handlers[topic] = {handler: handler, timer: timer}
       subscribe_topic(topic)
     rescue Exception => e
-      GLogger.error e.message
-      GLogger.error e.backtrace
+      GLogger.debug e.message
+      GLogger.debug e.backtrace
+    end
+
+    def publish_error(messsage)
+      @publisher.publish(Gilmour::ErrorChannel, messsage)
+    end
+
+    def queue_error(key, message)
+      @publisher.lpush(key, message) do
+        @publisher.ltrim(key, 0, GilmourErrorBufferLen) do
+          Glogger.debug "Error queued"
+        end
+      end
     end
 
     def acquire_ex_lock(sender)
@@ -109,8 +121,8 @@ module Gilmour
         handler[:handler].call(data, code)
       end
     rescue Exception => e
-      GLogger.error e.message
-      GLogger.error e.backtrace
+      GLogger.debug e.message
+      GLogger.debug e.backtrace
     end
 
     def send_response(sender, body, code)
@@ -154,8 +166,8 @@ module Gilmour
         _send(sender, destination, payload, timeout, &blk)
       end
     rescue Exception => e
-      GLogger.error e.message
-      GLogger.error e.backtrace
+      GLogger.debug e.message
+      GLogger.debug e.backtrace
     end
 
     def _send(sender, destination, payload, timeout, &blk)
@@ -169,8 +181,8 @@ module Gilmour
         blk.call(num.to_i > 0)
       end
     rescue Exception => e
-      GLogger.error e.message
-      GLogger.error e.backtrace
+      GLogger.debug e.message
+      GLogger.debug e.backtrace
     end
 
     def stop
@@ -186,40 +198,33 @@ module Gilmour
     # monitor is stable enough, use Redis to save/share these data structures.
     #
     def register_health_check
-      @publisher.hset RedisHealthKey, self.ident, 'active'
+      @publisher.hset GilmourHealthKey, self.ident, 'active'
 
       # - Start listening on a dyanmic topic that Health Monitor can publish
       # on.
-      #
-      # NOTE: The subscriber is responsible for returning data within 5
-      # seconds, to be considered as healthy, else the node is marked as
-      # unhealthy. 5 consecutive health check failures are marked as permanent
-      # failure and an event is raised for system administrators.
       #
       # NOTE: Health checks are not run as forks, to ensure that event-machine's
       # ThreadPool has sufficient resources to handle new requests.
       #
       topic = "gilmour.health.#{self.ident}"
       add_listener(topic) do
-        respond "Pong"
+        respond @subscriptions.keys
       end
 
       # TODO: Need to do these manually. Alternate is to return the handler
       # hash from add_listener.
       @subscriptions[topic][0][:exclusive] = true
-      @subscriptions[topic][0][:timeout] = 5
 
     end
 
     def unregister_health_check
       deleted = false
-      @publisher.hdel(RedisHealthKey, self.ident) do
+      @publisher.hdel(GilmourHealthKey, self.ident) do
         deleted = true
       end
 
       attempts = 0
       unless deleted || attempts > 5
-        puts "Waiting for delete operation"
         attempts += 1
         sleep 1
       end

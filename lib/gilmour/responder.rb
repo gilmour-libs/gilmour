@@ -148,6 +148,7 @@ module Gilmour
     def emit_error(extra={})
       opts = {
         :topic => @request[:topic],
+        :data => @request[:data],
         :description => '',
         :sender => @sender,
         :multi_process => @multi_process,
@@ -157,7 +158,7 @@ module Gilmour
       # Publish all errors on gilmour.error
       # This may or may not have a listener based on the configuration
       # supplied at setup.
-      if @backend.broadcast_errors
+      if @backend.broadcast_errors != false
         opts[:timestamp] = Time.now.getutc
         payload = {:traceback => @log_stack, :extra => opts}
         publish(payload, Gilmour::ErrorChannel, {}, 500)

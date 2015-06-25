@@ -24,17 +24,22 @@ module Gilmour
     end
 
     def initialize(opts={})
-      self.broadcast_errors = true
-      self.health_check = false
-
       @ident = generate_ident
 
-      if opts["broadcast_errors"] == false || opts[:broadcast_errors] == false
-        self.broadcast_errors = false
+      if opts.has_key? "broadcast_errors"
+        self.broadcast_errors = opts["broadcast_errors"]
+      elsif opts.has_key? :broadcast_errors
+        self.broadcast_errors = opts[:broadcast_errors]
+      else
+        self.broadcast_errors = true
       end
 
-      if opts["health_check"] || opts[:health_check]
-        self.health_check = true
+      if opts.has_key? "health_check"
+        self.health_check = opts["health_check"]
+      elsif opts.has_key? :health_check
+        self.health_check = opts[:health_check]
+      else
+        self.health_check = false
       end
     end
 
@@ -78,6 +83,19 @@ module Gilmour
     #
     def publish(message, destination, opts = {}, code = 0, &blk)
       payload, sender = Gilmour::Protocol.create_request(message, code)
+
+      if destination == Gilmour::ErrorChannel
+        broadcast = self.broadcast_errors
+        if broadcast == false
+          Glogger.debug "Skipping because broadcast_errors is false"
+        elsif broadcast == true
+          publish_error payload
+        elsif broadcast.is_a? String and !broadcast.empty?
+          queue_error broadcast, message
+        end
+        return sender
+      end
+
       EM.defer do # Because publish can be called from outside the event loop
         begin
           send(sender, destination, payload, opts, &blk)
@@ -143,6 +161,14 @@ module Gilmour
 
     def stop(sender, body, code)
       raise "Not implemented by child class"
+    end
+
+    def publish_error(message)
+      raise NotImplementedError.new
+    end
+
+    def queue_error(key, message)
+      raise NotImplementedError.new
     end
 
   end

@@ -39,7 +39,6 @@ describe 'TestSubscriber' do
     end
     Given(:connection_opts) { opts }
     before(:all) do
-      puts "Starting service"
       @service.registered_subscribers.each do |s|
         s.backend = 'redis'
       end
