@@ -85,13 +85,13 @@ module Gilmour
       payload, sender = Gilmour::Protocol.create_request(message, code)
 
       if destination == Gilmour::ErrorChannel
-        broadcast = self.broadcast_errors
-        if broadcast == false
-          Glogger.debug "Skipping because broadcast_errors is false"
-        elsif broadcast == true
-          publish_error payload
-        elsif broadcast.is_a? String and !broadcast.empty?
-          queue_error broadcast, message
+        EM.defer do
+          begin
+            emit_error payload
+          rescue Exception => e
+            GLogger.debug e.message
+            GLogger.debug e.backtrace
+          end
         end
         return sender
       end
@@ -107,6 +107,16 @@ module Gilmour
       sender
     end
 
+    def emit_error(message)
+      broadcast = self.broadcast_errors
+      if broadcast == false
+        Glogger.debug "Skipping because broadcast_errors is false"
+      elsif broadcast == true
+        publish_error message
+      elsif broadcast.is_a? String and !broadcast.empty?
+        queue_error broadcast, message
+      end
+    end
 
     # Adds a new handler for the given _topic_
     def add_listener(topic, &handler)

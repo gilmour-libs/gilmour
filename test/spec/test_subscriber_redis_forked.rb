@@ -128,44 +128,6 @@ describe 'TestSubscriberFork' do
       end
     end
 
-    context 'Handler to Test exits with LPush' do
-      Given(:ping_opts) do
-        redis_ping_options
-      end
-
-      When(:sub) do
-        Gilmour::RedisBackend.new({})
-      end
-      When(:code) do
-        code = nil
-
-        error_key = "hello.world"
-        backend = @service.get_backend("redis")
-        backend.broadcast_errors = error_key
-
-        sub.publish(1, TestSubscriber::ExitTopic)
-
-        th = Thread.new{
-          5.times {
-            sleep 1
-            sub.publisher.lpop(error_key) do |val|
-              if val.is_a? String
-                code = 500
-                th.kill
-              end
-            end
-          }
-        }
-
-        th.join
-        backend.broadcast_errors = true
-        code
-      end
-      Then do
-        code.should be == 500
-      end
-    end
-
     context 'Handler sleeps longer than the Timeout' do
       Given(:ping_opts) do
         redis_ping_options
@@ -363,5 +325,44 @@ describe 'TestSubscriberFork' do
         response.size.should == 1
       end
     end
+
+    context 'Handler to Test exits with LPush' do
+      Given(:ping_opts) do
+        redis_ping_options
+      end
+
+      When(:sub) do
+        Gilmour::RedisBackend.new({})
+      end
+      When(:code) do
+        code = nil
+
+        error_key = "hello.world"
+        backend = @service.get_backend("redis")
+        backend.broadcast_errors = error_key
+
+        sub.publish(1, TestSubscriber::ExitTopic)
+
+        th = Thread.new{
+          5.times {
+            sleep 1
+            sub.publisher.lpop(error_key) do |val|
+              if val.is_a? String
+                code = 500
+                th.kill
+              end
+            end
+          }
+        }
+
+        th.join
+        backend.broadcast_errors = true
+        code
+      end
+      Then do
+        code.should be == 500
+      end
+    end
+
   end
 end
