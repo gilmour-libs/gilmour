@@ -26,31 +26,35 @@ module Gilmour
       logger
     end
 
-    def initialize(sender, topic, data, backend, timeout=600, forked=false)
+    def initialize(sender, topic, data, backend, opts={})
       @sender = sender
       @request = Mash.new(topic: topic, body: data)
       @response = { data: nil, code: nil }
       @backend = backend
-      @timeout = timeout || 600
-      @multi_process = forked || false
+      @timeout = opts[:timeout] || 600
+      @multi_process = opts[:fork] || false
+      @respond = opts[:respond]
       @pipe = IO.pipe
       @publish_pipe = IO.pipe
       @log_stack = []
       @logger = make_logger()
+      @delayed_response = false
     end
 
     def receive_data(data)
-      sender, res_data, res_code = JSON.parse(data)
+      sender, res_data, res_code, opts = JSON.parse(data)
+      res_code ||= 200 if @respond
       write_response(sender, res_data, res_code) if sender && res_code
     end
 
     # Called by parent
     def write_response(sender, data, code)
+      return unless @respond
       @backend.send_response(sender, data, code)
     end
 
     # Adds a dynamic listener for _topic_
-    def add_listener(topic, &handler)
+    def add_listener(topic, opts={}, &handler)
       if @multi_process
         GLogger.error "Dynamic listeners using add_listener not supported \
         in forked responder. Ignoring!"
@@ -58,6 +62,25 @@ module Gilmour
 
       @backend.add_listener(topic, &handler)
     end
+
+    def slot(topic, opts={}, &handler)
+      if @multi_process
+        GLogger.error "Dynamic listeners using add_listener not supported \
+        in forked responder. Ignoring!"
+      end
+
+      @backend.slot(topic, opts, &handler)
+    end
+
+    def reply_to(topic, opts={}, &handler)
+      if @multi_process
+        GLogger.error "Dynamic listeners using add_listener not supported \
+        in forked responder. Ignoring!"
+      end
+
+      @backend.reply_to(topic, opts, &handler)
+    end
+
 
     # Sends a response with _body_ and _code_
     # If +opts[:now]+ is true, the response is sent immediately,
@@ -69,6 +92,14 @@ module Gilmour
         send_response
         @response = {}
       end
+    end
+
+    def delay_response
+      @delayed_response = true
+    end
+
+    def delayed_response?
+      @delayed_response
     end
 
     # Called by parent
@@ -101,8 +132,8 @@ module Gilmour
             begin
               data = @read_publish_pipe.readline
               pub_mutex.synchronize do
-                destination, message = JSON.parse(data)
-                @backend.publish(message, destination)
+                method, args = JSON.parse(data)
+                @backend.send(method.to_sym, *args)
               end
             rescue EOFError
               # awkward blank rescue block
@@ -170,9 +201,10 @@ module Gilmour
     # Called by child
     # :nodoc:
     def _execute(handler)
+      ret = nil
       begin
         Timeout.timeout(@timeout) do
-          instance_eval(&handler)
+          ret = instance_eval(&handler)
         end
       rescue Timeout::Error => e
         logger.error e.message
@@ -185,27 +217,46 @@ module Gilmour
         @response[:code] = 500
         emit_error :description => e.message
       end
+      @response[:code] ||= 200 if @respond && !delayed_response?
       send_response if @response[:code]
     end
 
     # Publishes a message. See Backend::publish
-    def publish(message, destination, opts = {}, code=nil)
+    def publish(message, destination, opts = {}, code=nil, &blk)
       if @multi_process
         if block_given?
           GLogger.error "Publish callback not supported in forked responder. Ignoring!"
 #          raise Exception.new("Publish Callback is not supported in forked mode.")
         end
-
-        msg = JSON.generate([destination, message, code])
+        method = opts[:method] || 'publish'
+        msg = JSON.generate([method, [message, destination, opts, code]])
         @write_publish_pipe.write(msg+"\n")
         @write_publish_pipe.flush
       elsif block_given?
-        blk = Proc.new
         @backend.publish(message, destination, opts, &blk)
       else
         @backend.publish(message, destination, opts)
       end
     end
+
+    def request!(message, destination, opts={}, &blk)
+      if @multi_process
+        opts[:method] = 'request!'
+        publish(message, destination, opts, &blk)
+      else
+        @backend.request!(message, destination, opts, &blk)
+      end
+    end
+
+    def signal!(message, destination, opts={}, &blk)
+      if @multi_process
+        opts[:method] = 'signal!'
+        publish(message, destination, opts, &blk)
+      else
+        @backend.signal!(message, destination, opts, &blk)
+      end
+    end
+
 
     # Called by child
     # :nodoc:

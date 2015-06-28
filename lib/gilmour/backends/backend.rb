@@ -52,7 +52,7 @@ module Gilmour
       payload, sender = Gilmour::Protocol.create_request(message, code)
       EM.defer do # Because publish can be called from outside the event loop
         begin
-          send(sender, destination, payload, opts, &blk)
+          send_message(sender, destination, payload, opts, &blk)
         rescue Exception => e
           GLogger.debug e.message
           GLogger.debug e.backtrace
@@ -61,15 +61,73 @@ module Gilmour
       sender
     end
 
+    def request_destination(dest)
+      'gilmour.request.' + dest
+    end
+
+    def slot_destination(dest)
+      'gilmour.slot.' + dest
+    end
+
+    def request!(message, dest, opts = {}, code = 0, &blk)
+      opts[:confirm_subscriber] = true
+      publish(message, request_destination(dest), opts, code, &blk)
+    end
+
+    def signal!(message, dest, opts = {})
+      GLogger.error('Signal cannot have a callback. Ignoring!') if block_given?
+      publish(message, slot_destination(dest), opts)
+    end
+
+    def broadcast(message, destination, opts = {}, code = 0, &blk)
+      request(message, destination, opts, code, &blk)
+      signal(message, destination, opts)
+    end
 
     # Adds a new handler for the given _topic_
-    def add_listener(topic, &handler)
+    def add_listener(topic, opts={}, &blk)
+      raise "Not implemented by child class"
+    end
+
+    def reply_to(topic, opts={}, &blk)
+      opts[:type] = :reply
+      group = exclusive_group(opts)
+      if exclusive_group(opts).empty?
+        raise ArgumentError.new("Invalid exclusive group")
+      end
+      opts[:excl] = true
+      add_listener(request_destination(topic), opts, &blk)
+    end
+
+    def slot(topic, opts={}, &blk)
+      opts[:type] = :slot
+      gtopic = 'gilmour.slot.' + topic
+      #TODO: Check whether topic has a registered subscriber class?
+      # or leave it to a linter??
+      add_listener(slot_destination(topic), opts, &blk)
+    end
+
+    # TODO
+    def compose(topic, &handler)
+      raise "Not implemented by child class"
+    end
+
+    # TODO
+    def batch(topic, &handler)
       raise "Not implemented by child class"
     end
 
     # Removes existing _handler_ for the _topic_
-    def remove_listener(topic, &handler)
+    def remove_listener(topic, handler)
       raise "Not implemented by child class"
+    end
+
+    def remove_slot(topic, handler)
+      remove_listener(slot_destination(topic), handler)
+    end
+
+    def remove_reply(topic, handler)
+      remove_listener(request_destination(topic), handler)
     end
 
     def acquire_ex_lock(sender)
@@ -80,10 +138,18 @@ module Gilmour
       raise "Not implemented by child class"
     end
 
+    def exclusive_group(sub)
+      (sub[:excl_group] || sub[:subscriber]).to_s
+    end
+
     def execute_handler(topic, payload, sub)
       data, sender = Gilmour::Protocol.parse_request(payload)
       if sub[:exclusive]
-        lock_key = sender + sub[:subscriber].to_s
+        group = exclusive_group(sub)
+        if group.empty?
+          raise RuntimeError.new("Exclusive flag without group encountered!")
+        end
+        lock_key = sender + group
         acquire_ex_lock(lock_key) { _execute_handler(topic, data, sender, sub) }
       else
         _execute_handler(topic, data, sender, sub)
@@ -94,15 +160,17 @@ module Gilmour
     end
 
     def _execute_handler(topic, data, sender, sub)
+      respond = (sub[:type] != :slot)
       Gilmour::Responder.new(
-        sender, topic, data, self, sub[:timeout], sub[:fork]
+        sender, topic, data, self, timeout: sub[:timeout],
+        fork: sub[:fork], respond: respond
       ).execute(sub[:handler])
     rescue Exception => e
       GLogger.debug e.message
       GLogger.debug e.backtrace
     end
 
-    def send
+    def send_message
       raise "Not implemented by child class"
     end
 

@@ -76,5 +76,6 @@ class TestSubscriber < TestServiceBase
     publish(request.body, Topic) do |data, code|
       resp.respond data, 200, now: true
     end
+    delay_response
   end
 end
