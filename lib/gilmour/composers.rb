@@ -71,16 +71,16 @@ module Gilmour
     class Compose < Pipeline
       def execute(msg = {}, &blk)
         blk.call(nil, nil) if pipeline.empty?
-        handler = proc do |prev, queue, data, code|
+        handler = proc do |queue, data, code|
           if queue.empty? || code != 200
             blk.call(data, code, continuation(queue))
           else
             head = queue.first
             tail = queue[1..-1]
-            head.execute(data, &handler.curry[head, tail])
+            head.execute(data, &handler.curry[tail])
           end
         end
-        handler.call(nil, pipeline, msg, 200)
+        handler.call(pipeline, msg, 200)
       end
     end
 
@@ -91,16 +91,16 @@ module Gilmour
     class AndAnd < Pipeline
       def execute(&blk)
         blk.call(nil, nil) if pipeline.empty?
-        handler = proc do |prev, queue, data, code|
+        handler = proc do |queue, data, code|
           if queue.empty? || code != 200
             blk.call(data, code, continuation(queue))
           else
             head = queue.first
             tail = queue[1..-1]
-            head.execute(&handler.curry[head, tail])
+            head.execute(&handler.curry[tail])
           end
         end
-        handler.call(nil, pipeline, nil, 200)
+        handler.call(pipeline, nil, 200)
       end
     end
 
@@ -117,7 +117,7 @@ module Gilmour
       def execute(&blk)
         results = []
         blk.call(nil, nil) if pipeline.empty?
-        handler = proc do |prev, queue, data, code|
+        handler = proc do |queue, data, code|
           results << {data: data, code: code} if @record
           if queue.empty?
             result = @record ? results[1..-1] : data
@@ -125,10 +125,10 @@ module Gilmour
           else
             head = queue.first
             tail = queue[1..-1]
-            head.execute(&handler.curry[head, tail])
+            head.execute(&handler.curry[tail])
           end
         end
-        handler.call(nil, pipeline, nil, 200)
+        handler.call(pipeline, nil, 200)
       end
     end
 
