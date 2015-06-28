@@ -1,6 +1,7 @@
 # encoding: utf-8
 
 require_relative '../protocol'
+require_relative '../composers'
 
 module Gilmour
   ErrorChannel = "gilmour.error"
@@ -10,6 +11,7 @@ module Gilmour
     SUPPORTED_BACKENDS = %w(redis)
     @@registry = {}
 
+    include Gilmour::Composers
     attr_accessor :broadcast_errors
 
     def initialize(opts={})
