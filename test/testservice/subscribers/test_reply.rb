@@ -4,8 +4,8 @@ class TestReplier < TestServiceBase
   WildcardTopic = 'test.reply.wildcard.*'
   Simulation = 'simulate.reply.topic'
   Republish = 'test.reply.republish'
-  GroupReturn = "reply.group_return"
-  GroupTopic = "test.reply.group"
+  GroupReturn = "test.slot.group_return"
+  GroupTopic = "test.slot.group"
   ExclusiveTopic = "test.reply.exclusive"
   ExitTopic = "topic.reply.exit"
   ReListenTopic = "topic.reply.relisten"
@@ -19,14 +19,9 @@ class TestReplier < TestServiceBase
     @callback = Proc.new
   end
 
-  2.times do |i|
-    reply_to ExclusiveTopic do
-      signal!(i, TestReplier::GroupReturn)
-    end
-  end
-
+  
   2.times do
-    reply_to GroupTopic do
+    slot GroupTopic do
       signal!(request.body, TestReplier::GroupReturn)
       signal!("2", TestReplier::GroupReturn)
     end
@@ -37,11 +32,11 @@ class TestReplier < TestServiceBase
     logger.info "Will sleep for #{data} seconds now. But allowed timeout is 2."
     sleep data
     respond 'Pong!'
+    logger.info "Done with sleep"
   end
 
-  listen_to ExitTopic do
+  reply_to ExitTopic do
     logger.info "Sleeping for 2 seconds, and then will exit"
-    sleep 2
     exit!
   end
 
@@ -55,7 +50,6 @@ class TestReplier < TestServiceBase
 
   reply_to Topic do
     if TestReplier.get_callback
-      $stderr.puts 'Calling callback from handler'
       TestReplier.get_callback.call(request.topic, request.body)
     end
     respond 'Pong!' if request.body == 'Ping!'

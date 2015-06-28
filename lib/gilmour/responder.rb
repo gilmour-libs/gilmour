@@ -221,17 +221,23 @@ module Gilmour
       send_response if @response[:code]
     end
 
+    def call_parent_backend_method(method, *args)
+      msg = JSON.generate([method, args])
+      @write_publish_pipe.write(msg+"\n")
+      @write_publish_pipe.flush
+    end
+
     # Publishes a message. See Backend::publish
     def publish(message, destination, opts = {}, code=nil, &blk)
       if @multi_process
         if block_given?
           GLogger.error "Publish callback not supported in forked responder. Ignoring!"
-#          raise Exception.new("Publish Callback is not supported in forked mode.")
         end
-        method = opts[:method] || 'publish'
-        msg = JSON.generate([method, [message, destination, opts, code]])
-        @write_publish_pipe.write(msg+"\n")
-        @write_publish_pipe.flush
+        call_parent_backend_method('publish', message, destination, opts, code)
+#        method = opts[:method] || 'publish'
+#        msg = JSON.generate([method, [message, destination, opts, code]])
+#        @write_publish_pipe.write(msg+"\n")
+#        @write_publish_pipe.flush
       elsif block_given?
         @backend.publish(message, destination, opts, &blk)
       else
@@ -241,17 +247,18 @@ module Gilmour
 
     def request!(message, destination, opts={}, &blk)
       if @multi_process
-        opts[:method] = 'request!'
-        publish(message, destination, opts, &blk)
+        if block_given?
+          GLogger.error "Publish callback not supported in forked responder. Ignoring!"
+        end
+        call_parent_backend_method('request!', message, destination, opts)
       else
         @backend.request!(message, destination, opts, &blk)
       end
     end
 
-    def signal!(message, destination, opts={}, &blk)
+    def signal!(message, destination, opts={})
       if @multi_process
-        opts[:method] = 'signal!'
-        publish(message, destination, opts, &blk)
+        call_parent_backend_method('signal!', message, destination, opts)
       else
         @backend.signal!(message, destination, opts, &blk)
       end

@@ -131,6 +131,10 @@ module Gilmour
       EM.next_tick { subscribe_topic(topic) }
     end
 
+    def listeners(topic)
+      @subscriptions[topic] || []
+    end
+
     def remove_listener(topic, handler = nil)
       if handler
         subs = @subscriptions[topic]

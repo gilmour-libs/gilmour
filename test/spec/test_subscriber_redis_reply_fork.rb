@@ -11,7 +11,6 @@ def install_test_subscriber
   TestReplier.callback do |topic, data|
     @topic = topic
     @data = data
-    $stderr.puts "Got callback #{topic}, #{data}"
     waiter.signal
   end
   waiter
@@ -19,7 +18,7 @@ end
 
 describe 'TestReplier' do
   opts = redis_connection_options
-  opts[:health_check] = true
+  opts[:broadcast_errors] = true
 
   test_subscriber_path = './testservice/subscribers/test_reply'
   after(:all) do
@@ -28,6 +27,11 @@ describe 'TestReplier' do
   Given(:subscriber) { TestServiceBase }
   Given do
     subscriber.load_subscriber(test_subscriber_path)
+    subscriber.subscribers.each do |topic, arr|
+      arr.each do |s|
+        s[:fork] = true
+      end
+    end
   end
   Then do
     handlers = subscriber.subscribers(TestReplier::Topic)
@@ -65,51 +69,6 @@ describe 'TestReplier' do
             @data.should be == arg2
           end
         end
-      end
-    end
-
-    context 'Receive messages' do
-      context 'Receive a message' do
-        Given(:ping_opts) { redis_ping_options }
-        When do
-          @data = @topic = nil
-          waiter = install_test_subscriber
-          g = Gilmour::RedisBackend.new({})
-          g.request!(ping_opts[:message], TestReplier::Topic)
-          waiter.wait(5)
-        end
-        Then do
-          @data.should be == ping_opts[:message]
-          @topic.should be == "gilmour.request.#{TestReplier::Topic}"
-        end
-        And { expect(EM.reactor_thread.alive?).to be_truthy }
-      end
-    end
-
-    context 'Non Fork can add dynamic listeners', :fork_dynamic do
-      Given(:ping_opts) do
-        redis_ping_options
-      end
-
-      When(:sub) do
-        Gilmour::RedisBackend.new({})
-      end
-      When(:code) do
-        waiter = Waiter.new
-        dynamicaly_subscribed = 0
-
-        sub.request!(1, TestReplier::ReListenTopic) do |d, c|
-          sub.confirm_subscriber(sub.request_destination("test.world")) do |present|
-            dynamicaly_subscribed = present
-            waiter.signal
-          end
-        end
-
-        waiter.wait(5)
-        dynamicaly_subscribed
-      end
-      Then do
-        code.should be == true
       end
     end
 
@@ -276,28 +235,40 @@ describe 'TestReplier' do
       end
     end
 
-    context 'Send message from subscriber' do
-      Given(:ping_opts) { redis_ping_options }
+    context 'Handler to Test exits' do
+      Given(:ping_opts) do
+        redis_ping_options
+      end
+
       When(:sub) do
         Gilmour::RedisBackend.new({})
       end
-      When (:response) do
-        data = code = nil
-        waiter = Waiter.new
-        sub.request!(ping_opts[:message], TestReplier::Republish) do |d, c|
-          data = d
-          code = c
-          waiter.signal
+      When(:code) do
+        waiter_error = Waiter.new
+        waiter_code = Waiter.new
+        code = nil
+
+        #backend = @service.get_backend("redis")
+        #backend.broadcast_errors = true
+        error_listener_proc = sub.slot Gilmour::ErrorChannel do |d, c|
+          waiter_error.signal
         end
-        waiter.wait(5)
-        [data, code]
+
+        sub.request!(1, TestReplier::ExitTopic) do |d, c|
+          code = c
+          waiter_code.signal
+        end
+
+        waiter_code.wait(5)
+        waiter_error.wait(5)
+
+        sub.remove_listener Gilmour::ErrorChannel, error_listener_proc
+        #backend.broadcast_errors = false
+        code
       end
       Then do
-        data, code = response
-        data.should be == ping_opts[:response]
-        code.should be == 200
+        code.should be == 500
       end
-      And { expect(EM.reactor_thread.alive?).to be_truthy }
     end
   end
 end

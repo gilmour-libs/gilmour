@@ -95,7 +95,7 @@ module Gilmour
         defopts = opts.merge({
           type: :slot
         })
-        listen_to(topic, defopts)
+        listen_to(topic, defopts, &handler)
       end
       # Returns the list of subscribers for _topic_ or all subscribers if it is nil
       def subscribers(topic = nil)

@@ -89,22 +89,39 @@ module Gilmour
       raise "Not implemented by child class"
     end
 
-    def reply_to(topic, opts={}, &blk)
-      opts[:type] = :reply
+    def listeners(topic)
+      raise NotImplementedError.new
+    end
+
+    def excl_dups?(topic, opts)
       group = exclusive_group(opts)
-      if exclusive_group(opts).empty?
+      existing = listeners(topic).select { |l| exclusive_group(l) == group }
+      !existing.empty?
+    end
+
+    def reply_to(topic, opts={}, &blk)
+      group = exclusive_group(opts)
+      if group.empty?
         raise ArgumentError.new("Invalid exclusive group")
       end
+      req_topic = request_destination(topic)
+      if excl_dups?(req_topic, opts)
+        raise RuntimeError.new("Duplicate reply handler for #{topic}:#{group}")
+      end
+      opts[:type] = :reply
       opts[:excl] = true
-      add_listener(request_destination(topic), opts, &blk)
+      add_listener(req_topic, opts, &blk)
     end
 
     def slot(topic, opts={}, &blk)
+      stopic = slot_destination(topic)
+      if opts[:excl] && excl_dups?(stopic, opts)
+        raise RuntimeError.new("Duplicate reply handler for #{topic}:#{group}")
+      end
       opts[:type] = :slot
-      gtopic = 'gilmour.slot.' + topic
       #TODO: Check whether topic has a registered subscriber class?
       # or leave it to a linter??
-      add_listener(slot_destination(topic), opts, &blk)
+      add_listener(stopic, opts, &blk)
     end
 
     # TODO
