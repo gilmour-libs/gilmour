@@ -91,7 +91,9 @@ module Gilmour
 
     def acquire_ex_lock(sender)
       @publisher.set(sender, sender, 'EX', 600, 'NX') do |val|
-        yield val if val && block_given?
+        EM.defer do
+          yield val if val && block_given?
+        end
       end
     end
 
