@@ -260,7 +260,7 @@ module Gilmour
       if @multi_process
         call_parent_backend_method('signal!', message, destination, opts)
       else
-        @backend.signal!(message, destination, opts, &blk)
+        @backend.signal!(message, destination, opts)
       end
     end
 

@@ -69,9 +69,9 @@ module Gilmour
       'gilmour.slot.' + dest
     end
 
-    def request!(message, dest, opts = {}, code = 0, &blk)
+    def request!(message, dest, opts = {}, &blk)
       opts[:confirm_subscriber] = true
-      publish(message, request_destination(dest), opts, code, &blk)
+      publish(message, request_destination(dest), opts, 0, &blk)
     end
 
     def signal!(message, dest, opts = {})
@@ -99,10 +99,13 @@ module Gilmour
       !existing.empty?
     end
 
-    def reply_to(topic, opts={}, &blk)
+    def reply_to(topic, options={}, &blk)
+      opts = options.dup
       group = exclusive_group(opts)
       if group.empty?
-        raise ArgumentError.new("Invalid exclusive group")
+        group = "_default"
+        opts[:excl_group] = group
+        GLogger.warn("Using default exclusion group for #{topic}")
       end
       req_topic = request_destination(topic)
       if excl_dups?(req_topic, opts)
@@ -113,7 +116,8 @@ module Gilmour
       add_listener(req_topic, opts, &blk)
     end
 
-    def slot(topic, opts={}, &blk)
+    def slot(topic, options={}, &blk)
+      opts = options.dup
       stopic = slot_destination(topic)
       if opts[:excl] && excl_dups?(stopic, opts)
         raise RuntimeError.new("Duplicate reply handler for #{topic}:#{group}")
@@ -122,16 +126,6 @@ module Gilmour
       #TODO: Check whether topic has a registered subscriber class?
       # or leave it to a linter??
       add_listener(stopic, opts, &blk)
-    end
-
-    # TODO
-    def compose(topic, &handler)
-      raise "Not implemented by child class"
-    end
-
-    # TODO
-    def batch(topic, &handler)
-      raise "Not implemented by child class"
     end
 
     # Removes existing _handler_ for the _topic_
