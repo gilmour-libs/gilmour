@@ -343,20 +343,22 @@ describe 'TestSubscriberFork' do
 
         sub.publish(1, TestSubscriber::ExitTopic)
 
-        th = Thread.new{
-          5.times {
-            sleep 1
+        waiter = Waiter.new
+
+        Thread.new{
+          loop {
+            $stderr.puts "Checking values"
             sub.publisher.lpop(error_key) do |val|
               if val.is_a? String
                 code = 500
-                th.kill
+                waiter.signal
               end
             end
+            sleep 1
           }
         }
 
-        th.join
-        backend.report_errors = true
+        waiter.wait(6)
         code
       end
       Then do
