@@ -24,7 +24,7 @@ module Gilmour
 
   GLogger = Logger.new(STDERR)
   EnvLoglevel =  ENV["LOG_LEVEL"] ? ENV["LOG_LEVEL"].to_sym : :warn
-  GLogger.level = LoggerLevels[EnvLoglevel] || Logger::WARN
+  GLogger.level = LoggerLevels[EnvLoglevel] || Logger::DEBUG
 
   RUNNING = false
   # This is the base module that should be included into the
@@ -135,7 +135,7 @@ module Gilmour
       subs_by_backend.each do |b, subs|
         backend = get_backend(b)
         backend.setup_subscribers(subs)
-        if backend.health_check
+        if backend.report_health?
           backend.unregister_health_check
         end
       end
@@ -150,7 +150,7 @@ module Gilmour
         backend = get_backend(b)
         backend.setup_subscribers(subs)
 
-        if backend.health_check
+        if backend.report_health?
           backend.register_health_check
         end
       end

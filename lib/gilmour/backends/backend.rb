@@ -12,9 +12,6 @@ module Gilmour
     SUPPORTED_BACKENDS = %w(redis)
     @@registry = {}
 
-    attr_accessor :broadcast_errors
-    attr_accessor :health_check
-
     def ident
       @ident
     end
@@ -23,24 +20,13 @@ module Gilmour
       "#{Socket.gethostname}-pid-#{Process.pid}-uuid-#{SecureRandom.uuid}"
     end
 
+    def report_errors?
+      #Override this method to adjust if you want errors to be reported.
+      return true
+    end
+
     def initialize(opts={})
       @ident = generate_ident
-
-      if opts.has_key? "broadcast_errors"
-        self.broadcast_errors = opts["broadcast_errors"]
-      elsif opts.has_key? :broadcast_errors
-        self.broadcast_errors = opts[:broadcast_errors]
-      else
-        self.broadcast_errors = true
-      end
-
-      if opts.has_key? "health_check"
-        self.health_check = opts["health_check"]
-      elsif opts.has_key? :health_check
-        self.health_check = opts[:health_check]
-      else
-        self.health_check = false
-      end
     end
 
     def register_health_check
@@ -84,18 +70,6 @@ module Gilmour
     def publish(message, destination, opts = {}, code = 0, &blk)
       payload, sender = Gilmour::Protocol.create_request(message, code)
 
-      if destination == Gilmour::ErrorChannel
-        EM.defer do
-          begin
-            emit_error payload
-          rescue Exception => e
-            GLogger.debug e.message
-            GLogger.debug e.backtrace
-          end
-        end
-        return sender
-      end
-
       EM.defer do # Because publish can be called from outside the event loop
         begin
           send(sender, destination, payload, opts, &blk)
@@ -108,14 +82,7 @@ module Gilmour
     end
 
     def emit_error(message)
-      broadcast = self.broadcast_errors
-      if broadcast == false
-        Glogger.debug "Skipping because broadcast_errors is false"
-      elsif broadcast == true
-        publish_error message
-      elsif broadcast.is_a? String and !broadcast.empty?
-        queue_error broadcast, message
-      end
+      raise NotImplementedError.new
     end
 
     # Adds a new handler for the given _topic_
@@ -171,14 +138,6 @@ module Gilmour
 
     def stop(sender, body, code)
       raise "Not implemented by child class"
-    end
-
-    def publish_error(message)
-      raise NotImplementedError.new
-    end
-
-    def queue_error(key, message)
-      raise NotImplementedError.new
     end
 
   end

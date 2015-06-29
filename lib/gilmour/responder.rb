@@ -19,9 +19,7 @@ module Gilmour
       loglevel =  ENV["LOG_LEVEL"] ? ENV["LOG_LEVEL"].to_sym : :warn
       logger.level = Gilmour::LoggerLevels[loglevel] || Logger::WARN
       logger.formatter = proc do |severity, datetime, progname, msg|
-        log_msg = original_formatter.call(severity, datetime, @sender, msg)
-        @log_stack.push(log_msg)
-        log_msg
+        original_formatter.call(severity, datetime, @sender, msg)
       end
       logger
     end
@@ -35,7 +33,6 @@ module Gilmour
       @multi_process = forked || false
       @pipe = IO.pipe
       @publish_pipe = IO.pipe
-      @log_stack = []
       @logger = make_logger()
     end
 
@@ -46,6 +43,10 @@ module Gilmour
 
     # Called by parent
     def write_response(sender, data, code)
+      if code > 200
+        emit_error data, code
+      end
+
       @backend.send_response(sender, data, code)
     end
 
@@ -123,14 +124,12 @@ module Gilmour
           logger.error msg
           # Set the multi-process mode as false, the child has died anyway.
           @multi_process = false
-          emit_error :description => msg
           write_response(@sender, msg, 500)
         elsif status.exitstatus > 0
           msg = "Child Process #{pid} exited with status #{status.exitstatus}"
           logger.error msg
           # Set the multi-process mode as false, the child has died anyway.
           @multi_process = false
-          emit_error :description => msg
           write_response(@sender, msg, 500)
         end
 
@@ -145,7 +144,10 @@ module Gilmour
       end
     end
 
-    def emit_error(extra={})
+    def emit_error(message, code=500, extra={})
+      # Publish all errors on gilmour.error
+      # This may or may not have a listener based on the configuration
+      # supplied at setup.
       opts = {
         :topic => @request[:topic],
         :data => @request[:data],
@@ -155,14 +157,9 @@ module Gilmour
         :code => 500
       }.merge(extra || {})
 
-      # Publish all errors on gilmour.error
-      # This may or may not have a listener based on the configuration
-      # supplied at setup.
-      if @backend.broadcast_errors != false
-        opts[:timestamp] = Time.now.getutc
-        payload = {:traceback => @log_stack, :extra => opts}
-        publish(payload, Gilmour::ErrorChannel, {}, 500)
-      end
+      opts[:timestamp] = Time.now.getutc
+      payload = {:traceback => message, :extra => opts, :code => code}
+      @backend.emit_error payload
     end
 
     # Called by child
@@ -176,13 +173,14 @@ module Gilmour
         logger.error e.message
         logger.error e.backtrace
         @response[:code] = 504
-        emit_error :code => 504, :description => e.message
+        @response[:data] = e.message
       rescue Exception => e
         logger.error e.message
         logger.error e.backtrace
         @response[:code] = 500
-        emit_error :description => e.message
+        @response[:data] = e.message
       end
+
       send_response if @response[:code]
     end
 

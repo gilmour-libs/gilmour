@@ -9,6 +9,7 @@ module Gilmour
 
     implements 'redis'
 
+    attr_writer :report_errors
     attr_reader :subscriber
     attr_reader :publisher
 
@@ -22,22 +23,43 @@ module Gilmour
     def initialize(opts)
       @response_handlers = {}
       @subscriptions = {}
-      done = false
-      wait_m = Mutex.new
-      wait_c = ConditionVariable.new
+
+      waiter = Waiter.new
+
       Thread.new do
         EM.run do
           setup_pubsub(opts)
-          wait_m.synchronize {
-            done = true
-            wait_c.signal
-          }
+          waiter.signal
         end
       end
-      wait_m.synchronize {
-        wait_c.wait(wait_m) unless done
-      }
-      super
+
+      waiter.wait
+
+      @report_health = opts["health_check"] || opts[:health_check]
+      @report_health = false if @report_health != true
+
+      @report_errors = opts["broadcast_errors"] || opts[:broadcast_errors]
+      @report_errors = true if @report_errors != false
+    end
+
+    def report_health?
+      @report_health
+    end
+
+    def report_errors?
+      @report_errors
+    end
+
+    def emit_error(message)
+      report = self.report_errors?
+
+      if report == false
+        Glogger.debug "Skipping because report_errors is false"
+      elsif report == true
+        publish_error message
+      elsif report.is_a? String and !report.empty?
+        queue_error report, message
+      end
     end
 
     def setup_pubsub(opts)
@@ -218,16 +240,13 @@ module Gilmour
     end
 
     def unregister_health_check
-      deleted = false
+      waiter = Waiter.new
+
       @publisher.hdel(GilmourHealthKey, self.ident) do
-        deleted = true
+        waiter.signal
       end
 
-      attempts = 0
-      unless deleted || attempts > 5
-        attempts += 1
-        sleep 1
-      end
+      waiter.wait(5)
     end
 
   end

@@ -339,7 +339,7 @@ describe 'TestSubscriberFork' do
 
         error_key = "hello.world"
         backend = @service.get_backend("redis")
-        backend.broadcast_errors = error_key
+        backend.report_errors = error_key
 
         sub.publish(1, TestSubscriber::ExitTopic)
 
@@ -356,7 +356,7 @@ describe 'TestSubscriberFork' do
         }
 
         th.join
-        backend.broadcast_errors = true
+        backend.report_errors = true
         code
       end
       Then do
