@@ -43,7 +43,7 @@ module Gilmour
 
     # Called by parent
     def write_response(sender, data, code)
-      if code > 200
+      if code >= 300 && @backend.report_errors?
         emit_error data, code
       end
 
