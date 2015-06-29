@@ -89,7 +89,7 @@ module Gilmour
     end
 
     class AndAnd < Pipeline
-      def execute(&blk)
+      def execute(data={}, &blk)
         blk.call(nil, nil) if pipeline.empty?
         handler = proc do |queue, data, code|
           if queue.empty? || code != 200
@@ -114,7 +114,7 @@ module Gilmour
         @record = record
       end
 
-      def execute(&blk)
+      def execute(data={}, &blk)
         results = []
         blk.call(nil, nil) if pipeline.empty?
         handler = proc do |queue, data, code|

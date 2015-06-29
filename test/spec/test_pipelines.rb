@@ -55,7 +55,7 @@ describe 'Pipelines' do
       ['zero', 'one', 'two', 'three', 'anotherthree'].each do |k|
         expect(data.has_key?(k)).to be_truthy
       end
-      expect(code).to equal(200)
+      expect(code).to eq(200)
     }
   end
 
@@ -74,11 +74,11 @@ describe 'Pipelines' do
           waiter.signal
         end
         waiter.wait
-        expect(data.keys.size).to equal(2)
+        expect(data.keys.size).to eq(2)
         ['three', 'anotherthree'].each do |k|
           expect(data.has_key?(k)).to be_truthy
         end
-        expect(code).to equal(200)
+        expect(code).to eq(200)
       }
     end
 
@@ -113,20 +113,20 @@ describe 'Pipelines' do
       Then {
         data = firsttry[:data]
         code = firsttry[:code]
-        expect(data.keys.size).to equal(1)
+        expect(data.keys.size).to eq(1)
         ['badtwo'].each do |k|
           expect(data.has_key?(k)).to be_truthy
         end
-        expect(code).to equal(500)
+        expect(code).to eq(500)
       }
       And {
         data = secondtry[:data]
         code = secondtry[:code]
-        expect(data.keys.size).to equal(2)
+        expect(data.keys.size).to eq(2)
         ['three', 'anotherthree'].each do |k|
           expect(data.has_key?(k)).to be_truthy
         end
-        expect(code).to equal(200)
+        expect(code).to eq(200)
      }
     end
   end
@@ -147,11 +147,11 @@ describe 'Pipelines' do
         end
         waiter.wait
         expect(data).to be_kind_of(Hash)
-        expect(data.keys.size).to equal(2)
+        expect(data.keys.size).to eq(2)
         ['three', 'anotherthree'].each do |k|
           expect(data.has_key?(k)).to be_truthy
         end
-        expect(code).to equal(200)
+        expect(code).to eq(200)
       }
     end
 
@@ -171,10 +171,35 @@ describe 'Pipelines' do
         end
         waiter.wait
         expect(data).to be_kind_of(Array)
-        expect(data.size).to equal(3)
+        expect(data.size).to eq(3)
         %w{one badtwo three anotherthree}.each do |k|
           expect(data.find {|o| o[:data].has_key?(k)}).not_to be_nil
         end
+      }
+    end
+  end
+  context 'Combinations' do
+    context 'Andand and compose' do
+      Given(:andand) {
+        gilmour.andand([{topic: 'one'}, {topic: 'two'}])
+      }
+      Given(:compose) {
+        gilmour.compose([andand, {topic: 'three'}])
+      }
+      Then {
+        waiter = Waiter.new
+        code = data = nil
+        compose.execute do |d, c|
+          data = d
+          code = c
+          waiter.signal
+        end
+        waiter.wait
+        expect(data.keys.size).to eq(2)
+        ['two', 'three'].each do |k|
+          expect(data.has_key?(k)).to be_truthy
+        end
+        expect(code).to eq(200)
       }
     end
   end
