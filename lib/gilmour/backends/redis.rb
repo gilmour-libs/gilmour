@@ -5,7 +5,7 @@ module Gilmour
   # Redis backend implementation
   class RedisBackend < Backend
     GilmourHealthKey = "gilmour.known_host.health"
-    GilmourErrorBufferLen = 99
+    GilmourErrorBufferLen = 9999
 
     implements 'redis'
 
