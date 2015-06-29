@@ -24,7 +24,7 @@ module Gilmour
 
   GLogger = Logger.new(STDERR)
   EnvLoglevel =  ENV["LOG_LEVEL"] ? ENV["LOG_LEVEL"].to_sym : :warn
-  GLogger.level = LoggerLevels[EnvLoglevel] || Logger::WARN
+  GLogger.level = LoggerLevels[EnvLoglevel] || Logger::DEBUG
 
   RUNNING = false
   # This is the base module that should be included into the
@@ -130,14 +130,31 @@ module Gilmour
     end
     alias_method :get_backend, :enable_backend
 
+    def exit!
+      subs_by_backend = subs_grouped_by_backend
+      subs_by_backend.each do |b, subs|
+        backend = get_backend(b)
+        backend.setup_subscribers(subs)
+        if backend.report_health?
+          backend.unregister_health_check
+        end
+      end
+    end
+
     # Starts all the listeners
     # If _startloop_ is true, this method will start it's own
     # event loop and not return till Eventmachine reactor is stopped
     def start(startloop = false)
       subs_by_backend = subs_grouped_by_backend
       subs_by_backend.each do |b, subs|
-        get_backend(b).setup_subscribers(subs)
+        backend = get_backend(b)
+        backend.setup_subscribers(subs)
+
+        if backend.report_health?
+          backend.register_health_check
+        end
       end
+
       if startloop
         GLogger.debug 'Joining EM event loop'
         EM.reactor_thread.join

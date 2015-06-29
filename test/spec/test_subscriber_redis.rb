@@ -18,7 +18,6 @@ end
 
 describe 'TestSubscriber' do
   opts = redis_connection_options
-  opts[:health_check] = true
 
   test_subscriber_path = './testservice/subscribers/test_subscriber'
   after(:all) do
@@ -132,9 +131,7 @@ describe 'TestSubscriber' do
         waiter_code = Waiter.new
         code = nil
 
-        backend = @service.get_backend("redis")
-        backend.broadcast_errors = true
-        sub.add_listener Gilmour::ErrorChannel do
+        error_listener_proc = sub.add_listener Gilmour::ErrorChannel do
           waiter_error.signal
         end
 
@@ -146,7 +143,8 @@ describe 'TestSubscriber' do
         waiter_code.wait(5)
         waiter_error.wait(5)
 
-        backend.broadcast_errors = false
+        sub.remove_listener Gilmour::ErrorChannel, error_listener_proc
+
         code
       end
       Then do

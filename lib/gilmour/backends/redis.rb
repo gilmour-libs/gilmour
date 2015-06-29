@@ -4,8 +4,12 @@ require_relative 'backend'
 module Gilmour
   # Redis backend implementation
   class RedisBackend < Backend
+    GilmourHealthKey = "gilmour.known_host.health"
+    GilmourErrorBufferLen = 9999
+
     implements 'redis'
 
+    attr_writer :report_errors
     attr_reader :subscriber
     attr_reader :publisher
 
@@ -19,22 +23,43 @@ module Gilmour
     def initialize(opts)
       @response_handlers = {}
       @subscriptions = {}
-      done = false
-      wait_m = Mutex.new
-      wait_c = ConditionVariable.new
+
+      waiter = Waiter.new
+
       Thread.new do
         EM.run do
           setup_pubsub(opts)
-          wait_m.synchronize {
-            done = true
-            wait_c.signal
-          }
+          waiter.signal
         end
       end
-      wait_m.synchronize {
-        wait_c.wait(wait_m) unless done
-      }
-      super
+
+      waiter.wait
+
+      @report_health = opts["health_check"] || opts[:health_check]
+      @report_health = false if @report_health != true
+
+      @report_errors = opts["broadcast_errors"] || opts[:broadcast_errors]
+      @report_errors = true if @report_errors != false
+    end
+
+    def report_health?
+      @report_health
+    end
+
+    def report_errors?
+      @report_errors
+    end
+
+    def emit_error(message)
+      report = self.report_errors?
+
+      if report == false
+        Glogger.debug "Skipping because report_errors is false"
+      elsif report == true
+        publish_error message
+      elsif report.is_a? String and !report.empty?
+        queue_error report, message
+      end
     end
 
     def setup_pubsub(opts)
@@ -87,6 +112,18 @@ module Gilmour
     rescue Exception => e
       GLogger.debug e.message
       GLogger.debug e.backtrace
+    end
+
+    def publish_error(messsage)
+      @publisher.publish(Gilmour::ErrorChannel, messsage)
+    end
+
+    def queue_error(key, message)
+      @publisher.lpush(key, message) do
+        @publisher.ltrim(key, 0, GilmourErrorBufferLen) do
+          Glogger.debug "Error queued"
+        end
+      end
     end
 
     def acquire_ex_lock(sender)
@@ -172,6 +209,44 @@ module Gilmour
 
     def stop
       @subscriber.close_connection
+    end
+
+    # TODO: Health checks currently use Redis to keep keys in a data structure.
+    # An alternate approach would be that monitor subscribes to a topic
+    # and records nodenames that request to be monitored. The publish method
+    # should fail if there is no definite health monitor listening. However,
+    # that would require the health node to be running at all points of time
+    # before a Gilmour server starts up. To circumvent this dependency, till
+    # monitor is stable enough, use Redis to save/share these data structures.
+    #
+    def register_health_check
+      @publisher.hset GilmourHealthKey, self.ident, 'active'
+
+      # - Start listening on a dyanmic topic that Health Monitor can publish
+      # on.
+      #
+      # NOTE: Health checks are not run as forks, to ensure that event-machine's
+      # ThreadPool has sufficient resources to handle new requests.
+      #
+      topic = "gilmour.health.#{self.ident}"
+      add_listener(topic) do
+        respond @subscriptions.keys
+      end
+
+      # TODO: Need to do these manually. Alternate is to return the handler
+      # hash from add_listener.
+      @subscriptions[topic][0][:exclusive] = true
+
+    end
+
+    def unregister_health_check
+      waiter = Waiter.new
+
+      @publisher.hdel(GilmourHealthKey, self.ident) do
+        waiter.signal
+      end
+
+      waiter.wait(5)
     end
 
   end
