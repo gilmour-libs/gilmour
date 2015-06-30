@@ -1,5 +1,6 @@
 require 'em-hiredis'
 require_relative 'backend'
+require_relative '../waiter'
 
 module Gilmour
   # Redis backend implementation
