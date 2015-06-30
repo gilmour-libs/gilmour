@@ -5,7 +5,8 @@ class EventServer
   include Gilmour::Base
 
   def initialize
-    enable_backend('redis', { })
+    backend = 'redis'
+    enable_backend(backend, { })
     registered_subscribers.each do |sub|
       sub.backend = backend
     end
@@ -16,7 +17,7 @@ end
 
 class EchoSubscriber < EventServer
   # Passing second parameter as true makes only one instance of this handler handle a request
-  listen_to 'echo.*', true do
+  listen_to 'echo.*', {"exclusive" => true} do
     if request.body == 'Palmolive'
       respond nil
     else
