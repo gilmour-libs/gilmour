@@ -41,6 +41,15 @@ module Gilmour
 
       @report_errors = opts["broadcast_errors"] || opts[:broadcast_errors]
       @report_errors = true if @report_errors != false
+      @ident = generate_ident
+    end
+
+    def ident
+      @ident
+    end
+
+    def generate_ident
+      "#{Socket.gethostname}-pid-#{Process.pid}-uuid-#{SecureRandom.uuid}"
     end
 
     def report_health?
@@ -152,6 +161,10 @@ module Gilmour
       publish(body, "gilmour.response.#{sender}", {}, code)
     end
 
+    def get_subscribers
+      @subscriptions.keys
+    end
+
     def setup_subscribers(subs = {})
       @subscriptions.merge!(subs)
       EM.defer do
@@ -230,8 +243,9 @@ module Gilmour
       # ThreadPool has sufficient resources to handle new requests.
       #
       topic = "gilmour.health.#{self.ident}"
+      backend = self
       add_listener(topic) do
-        respond @subscriptions.keys
+        respond backend.get_subscribers
       end
 
       # TODO: Need to do these manually. Alternate is to return the handler

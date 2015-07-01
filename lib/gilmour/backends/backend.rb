@@ -12,21 +12,9 @@ module Gilmour
     SUPPORTED_BACKENDS = %w(redis)
     @@registry = {}
 
-    def ident
-      @ident
-    end
-
-    def generate_ident
-      "#{Socket.gethostname}-pid-#{Process.pid}-uuid-#{SecureRandom.uuid}"
-    end
-
     def report_errors?
       #Override this method to adjust if you want errors to be reported.
       return true
-    end
-
-    def initialize(opts={})
-      @ident = generate_ident
     end
 
     def register_health_check
