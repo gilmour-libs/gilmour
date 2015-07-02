@@ -255,13 +255,18 @@ module Gilmour
     end
 
     def unregister_health_check
-      waiter = Waiter.new
+      deleted = false
 
       @publisher.hdel(GilmourHealthKey, self.ident) do
-        waiter.signal
+        deleted = true
       end
 
-      waiter.wait(5)
+      attempts = 0
+      unless deleted || attempts > 5
+        attempts += 1
+        sleep 1
+      end
+
     end
 
   end
