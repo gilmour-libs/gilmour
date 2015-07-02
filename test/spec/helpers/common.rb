@@ -1,6 +1,7 @@
 
 class Waiter
   def initialize
+    @done = false
     @waiter_m = Mutex.new
     @waiter_c = ConditionVariable.new
   end
@@ -10,11 +11,14 @@ class Waiter
   end
 
   def signal
-    synchronize { @waiter_c.signal }
+    synchronize do
+      @done = true
+      @waiter_c.signal
+    end
   end
 
   def wait(timeout=nil)
-    synchronize { @waiter_c.wait(@waiter_m, timeout) }
+    synchronize { @waiter_c.wait(@waiter_m, timeout) unless @done }
   end
 end
 
