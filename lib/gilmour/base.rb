@@ -130,7 +130,7 @@ module Gilmour
     end
     alias_method :get_backend, :enable_backend
 
-    def exit!
+    def tear_down!
       subs_by_backend = subs_grouped_by_backend
       subs_by_backend.each do |b, subs|
         backend = get_backend(b)
