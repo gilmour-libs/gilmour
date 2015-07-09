@@ -118,6 +118,33 @@ describe 'TestSubscriber' do
       end
     end
 
+    context 'Exception data' do
+      Given(:ping_opts) do
+        redis_ping_options
+      end
+
+      When(:sub) do
+        Gilmour::RedisBackend.new({})
+      end
+      When(:code) do
+        waiter_error = Waiter.new
+        code = nil
+
+        error_listener_proc = sub.add_listener Gilmour::ErrorChannel do
+          code = request.body.code
+          waiter_error.signal
+        end
+
+        sub.publish(3, TestSubscriber::TimeoutTopic)
+        waiter_error.wait(5)
+        sub.remove_listener Gilmour::ErrorChannel, error_listener_proc
+        code
+      end
+      Then do
+        code.should be == 504
+      end
+    end
+
     context 'Handler sleeps longer than the Timeout' do
       Given(:ping_opts) do
         redis_ping_options

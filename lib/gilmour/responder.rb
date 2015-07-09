@@ -1,6 +1,7 @@
 # encoding: utf-8
 
-require "logger"
+require 'json'
+require 'logger'
 
 # Top level module
 module Gilmour
@@ -147,21 +148,21 @@ module Gilmour
       end
     end
 
-    def emit_error(message, code=500, extra={})
-      # Publish all errors on gilmour.error
-      # This may or may not have a listener based on the configuration
-      # supplied at setup.
+    # Publish all errors on gilmour.error
+    # This may or may not have a listener based on the configuration
+    # supplied at setup.
+    def emit_error(message, code = 500, extra = {})
       opts = {
-        :topic => @request[:topic],
-        :data => @request[:data],
-        :description => '',
-        :sender => @sender,
-        :multi_process => @multi_process,
-        :code => 500
-      }.merge(extra || {})
+        topic: @request.topic,
+        request_data: @request.body,
+        userdata: JSON.generate(extra || {}),
+        sender: @sender,
+        multi_process: @multi_process,
+        timestamp: Time.now.getutc
+      }
 
-      opts[:timestamp] = Time.now.getutc
-      payload = {:traceback => message, :extra => opts, :code => code}
+      payload = { backtrace: message, code: code }
+      payload.merge!(opts)
       @backend.emit_error payload
     end
 

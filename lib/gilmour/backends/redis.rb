@@ -125,7 +125,7 @@ module Gilmour
     end
 
     def publish_error(messsage)
-      @publisher.publish(Gilmour::ErrorChannel, messsage)
+      publish(messsage, Gilmour::ErrorChannel)
     end
 
     def queue_error(key, message)
