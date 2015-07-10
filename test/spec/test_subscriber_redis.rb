@@ -131,7 +131,7 @@ describe 'TestSubscriber' do
         code = nil
 
         error_listener_proc = sub.add_listener Gilmour::ErrorChannel do
-          code = request.body.code
+          code = request.body['code']
           waiter_error.signal
         end
 

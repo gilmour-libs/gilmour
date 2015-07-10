@@ -10,6 +10,15 @@ module Gilmour
   # The public methods in this class are available to be called
   # from the body of the handlers directly
 
+  class Request
+    attr_reader :topic, :body
+
+    def initialize(topic, body)
+      @topic = topic
+      @body = body
+    end
+  end
+
   class Responder
     attr_reader :logger
     attr_reader :request
@@ -27,7 +36,7 @@ module Gilmour
 
     def initialize(sender, topic, data, backend, timeout=600, forked=false)
       @sender = sender
-      @request = Mash.new(topic: topic, body: data)
+      @request = Request.new(topic, data)
       @response = { data: nil, code: nil }
       @backend = backend
       @timeout = timeout || 600
@@ -153,7 +162,7 @@ module Gilmour
     # supplied at setup.
     def emit_error(message, code = 500, extra = {})
       opts = {
-        topic: @request.topic,
+        topic: @request.topic, 
         request_data: @request.body,
         userdata: JSON.generate(extra || {}),
         sender: @sender,
