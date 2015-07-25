@@ -22,8 +22,22 @@ module Gilmour
   end
 
   class Responder
+    COMBINED_OUTPUT = true
+    LOG_SEPERATOR = '%%'
+    LOG_PREFIX = "#{LOG_SEPERATOR}gilmour#{LOG_SEPERATOR}"
+
     attr_reader :logger
     attr_reader :request
+
+    def fork_logger
+      logger = Logger.new(STDERR)
+      loglevel =  ENV["LOG_LEVEL"] ? ENV["LOG_LEVEL"].to_sym : :warn
+      logger.level = Gilmour::LoggerLevels[loglevel] || Logger::WARN
+      logger.formatter = proc do |severity, datetime, progname, msg|
+        "#{LOG_PREFIX}#{severity}#{LOG_SEPERATOR}#{msg}"
+      end
+      logger
+    end
 
     def make_logger
       logger = Logger.new(STDERR)
@@ -111,6 +125,35 @@ module Gilmour
           loop {
             begin
               data = reader.readline
+
+              if data.start_with?(LOG_PREFIX)
+                data.split(LOG_PREFIX).each do |msg|
+                  msg_grp = msg.split(LOG_SEPERATOR, 2)
+
+                  if msg_grp.length > 1
+                    data = msg_grp[1]
+                    case msg_grp[0]
+                    when 'INFO'
+                      logger.info data
+                    when 'UNKNOWN'
+                      logger.unknown data
+                    when 'WARN'
+                      logger.warn data
+                    when 'ERROR'
+                      logger.error data
+                    when 'FATAL'
+                      logger.fatal data
+                    else
+                      logger.debug data
+                    end
+                  else
+                    logger.debug msg
+                  end
+
+                end
+                next
+              end
+
               logger.debug data
             rescue EOFError
               waiter.done
@@ -135,10 +178,14 @@ module Gilmour
         @read_publish_pipe, @write_publish_pipe = @publish_pipe
 
         out_r, out_w = IO.pipe
-        err_r, err_w = IO.pipe
+        parent_io = [out_r]
+        child_io = [out_w]
 
-        parent_io = [out_r, err_r]
-        child_io = [out_w, err_w]
+        if COMBINED_OUTPUT != true
+          err_r, err_w = IO.pipe
+          child_io << err_w
+          parent_io << err_r
+        end
 
         pid = Process.fork do
           @backend.stop
@@ -150,7 +197,9 @@ module Gilmour
           parent_io.each{|io| io.close}
 
           @response_sent = false
-          capture_output(child_io) {
+          @logger = fork_logger
+
+          capture_output(child_io, COMBINED_OUTPUT) {
             _execute(handler)
           }
         end

@@ -14,7 +14,7 @@
 #
 # I canot use a file, hence a Pipe.
 
-def capture_output(pipes)
+def capture_output(pipes, combined=false)
   streams = [$stdout, $stderr]
 
   # Save the streams to be reassigned later.
@@ -30,7 +30,7 @@ def capture_output(pipes)
       # out of order, which they should?
       # If I reopen both of them on the same PIPE, they are guaranteed to
       # arrive in order.
-      stream.reopen(pipes[0])
+      stream.reopen(pipes[combined==true ? 0 : ix])
     end
     yield
   ensure
