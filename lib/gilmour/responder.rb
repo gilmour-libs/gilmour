@@ -28,8 +28,7 @@ module Gilmour
     def make_logger
       logger = Logger.new(STDERR)
       original_formatter = Logger::Formatter.new
-      #loglevel =  ENV["LOG_LEVEL"] ? ENV["LOG_LEVEL"].to_sym : :warn
-      loglevel = :debug
+      loglevel =  ENV["LOG_LEVEL"] ? ENV["LOG_LEVEL"].to_sym : :warn
       logger.level = Gilmour::LoggerLevels[loglevel] || Logger::WARN
       logger.formatter = proc do |severity, datetime, progname, msg|
         original_formatter.call(severity, datetime, @sender, msg)
