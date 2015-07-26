@@ -124,7 +124,10 @@ module Gilmour
           waiter.add 1
           loop {
             begin
-              data = reader.readline
+              data = reader.readline.chomp
+              if data.empty?
+                next
+              end
 
               if data.start_with?(LOG_PREFIX)
                 data.split(LOG_PREFIX).each do |msg|
