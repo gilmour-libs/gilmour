@@ -22,7 +22,7 @@ module Gilmour
   end
 
   class Responder
-    COMBINED_OUTPUT = true
+    CAPTURE_STDOUT = false
     LOG_SEPERATOR = '%%'
     LOG_PREFIX = "#{LOG_SEPERATOR}gilmour#{LOG_SEPERATOR}"
 
@@ -184,7 +184,7 @@ module Gilmour
         parent_io = [out_r]
         child_io = [out_w]
 
-        if COMBINED_OUTPUT != true
+        if CAPTURE_STDOUT == true
           err_r, err_w = IO.pipe
           child_io << err_w
           parent_io << err_r
@@ -202,7 +202,7 @@ module Gilmour
           @response_sent = false
           @logger = fork_logger
 
-          capture_output(child_io, COMBINED_OUTPUT) {
+          capture_output(child_io, CAPTURE_STDOUT) {
             _execute(handler)
           }
         end
