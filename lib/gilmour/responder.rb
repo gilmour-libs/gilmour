@@ -22,7 +22,6 @@ module Gilmour
   end
 
   class Responder
-    CAPTURE_STDOUT = false
     LOG_SEPERATOR = '%%'
     LOG_PREFIX = "#{LOG_SEPERATOR}gilmour#{LOG_SEPERATOR}"
 
@@ -60,6 +59,7 @@ module Gilmour
       @pipe = IO.pipe
       @publish_pipe = IO.pipe
       @logger = make_logger()
+      @capture_stdout = @backend.capture_stdout? || false
     end
 
     def receive_data(data)
@@ -184,7 +184,7 @@ module Gilmour
         parent_io = [out_r]
         child_io = [out_w]
 
-        if CAPTURE_STDOUT == true
+        if @capture_stdout == true
           err_r, err_w = IO.pipe
           child_io << err_w
           parent_io << err_r
@@ -202,7 +202,7 @@ module Gilmour
           @response_sent = false
           @logger = fork_logger
 
-          capture_output(child_io, CAPTURE_STDOUT) {
+          capture_output(child_io, @capture_stdout) {
             _execute(handler)
           }
         end

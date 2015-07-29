@@ -18,10 +18,10 @@ def capture_output(pipes, capture_stdout=false)
   streams = []
 
   if capture_stdout == true
-    streams << $stdout
+    streams << STDOUT
   end
 
-  streams << $stderr
+  streams << STDERR
 
   # Save the streams to be reassigned later.
   # Actually it doesn't matter because the child process would be killed

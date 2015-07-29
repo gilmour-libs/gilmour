@@ -9,6 +9,7 @@ require_relative 'helpers/connection'
 describe 'TestSubscriberFork' do
   opts = redis_connection_options
   opts['health_check'] = false
+  opts['capture_stdout'] = true
 
   test_subscriber_path = './testservice/subscribers/test_subscriber'
   after(:all) do
