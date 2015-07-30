@@ -6,8 +6,8 @@ Gem::Specification.new do |s|
 	s.name        = "gilmour"
 	s.version     = Gilmour::VERSION
 	s.platform    = Gem::Platform::RUBY
-	s.authors     = ["Aditya Godbole"]
-	s.email       = ["code.aa@gdbl.me"]
+	s.authors     = ["Aditya Godbole", "Piyush Verma"]
+  s.email       = ["code.aa@gdbl.me", "piyush@piyushverma.net"]
 	s.homepage    = ""
 	s.summary     = %q{A Sinatra like DSL for implementing AMQP services}
 	s.description = %q{This gem provides a Sinatra like DSL and a simple protocol to enable writing services that communicate over AMQP}
