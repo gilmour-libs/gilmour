@@ -31,7 +31,6 @@ module Gilmour
       logger = Logger.new(STDERR)
       loglevel =  ENV["LOG_LEVEL"] ? ENV["LOG_LEVEL"].to_sym : :warn
       logger.level = Gilmour::LoggerLevels[loglevel] || Logger::WARN
-      logger.datetime_format = "%Y-%m-%d %H:%M:%S"
       logger.formatter = proc do |severity, datetime, progname, msg|
         data = "#{LOG_PREFIX}#{severity}#{LOG_SEPERATOR}#{msg}"
         io_writer.write(data+"\n")
@@ -43,12 +42,11 @@ module Gilmour
 
     def make_logger
       logger = Logger.new(STDERR)
-      original_formatter = Logger::Formatter.new
       loglevel =  ENV["LOG_LEVEL"] ? ENV["LOG_LEVEL"].to_sym : :warn
       logger.level = Gilmour::LoggerLevels[loglevel] || Logger::WARN
-      logger.datetime_format = "%Y-%m-%d %H:%M:%S"
       logger.formatter = proc do |severity, datetime, progname, msg|
-        original_formatter.call(severity, datetime, @sender, msg)
+        date_format = datetime.strftime("%Y-%m-%d %H:%M:%S")
+        "#{severity[0]} #{date_format} #{@sender} -> #{msg}\n"
       end
       logger
     end
