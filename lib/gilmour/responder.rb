@@ -48,9 +48,7 @@ module Gilmour
       logger.level = Gilmour::LoggerLevels[loglevel] || Logger::WARN
       logger.datetime_format = "%Y-%m-%d %H:%M:%S"
       logger.formatter = proc do |severity, datetime, progname, msg|
-        unless msg.empty? and msg.chomp.empty?
-          original_formatter.call(severity, datetime, @sender, msg.chomp)
-        end
+        original_formatter.call(severity, datetime, @sender, msg)
       end
       logger
     end
