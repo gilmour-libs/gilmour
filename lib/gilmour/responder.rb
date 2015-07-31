@@ -128,25 +128,27 @@ module Gilmour
             data = io_reader.readline.chomp
             if data.start_with?(LOG_PREFIX)
               data.split(LOG_PREFIX).each do |msg|
-                msg_grp = msg.split(LOG_SEPERATOR, 2)
-                if msg_grp.length > 1
-                  data = msg_grp[1]
-                  case msg_grp[0]
-                  when 'INFO'
-                    parent_logger.info data
-                  when 'UNKNOWN'
-                    parent_logger.unknown data
-                  when 'WARN'
-                    parent_logger.warn data
-                  when 'ERROR'
-                    parent_logger.error data
-                  when 'FATAL'
-                    parent_logger.fatal data
+                unless msg.empty?
+                  msg_grp = msg.split(LOG_SEPERATOR, 2)
+                  if msg_grp.length > 1
+                    data = msg_grp[1]
+                    case msg_grp[0]
+                    when 'INFO'
+                      parent_logger.info data
+                    when 'UNKNOWN'
+                      parent_logger.unknown data
+                    when 'WARN'
+                      parent_logger.warn data
+                    when 'ERROR'
+                      parent_logger.error data
+                    when 'FATAL'
+                      parent_logger.fatal data
+                    else
+                      parent_logger.debug data
+                    end
                   else
-                    parent_logger.debug data
+                    parent_logger.debug msg
                   end
-                else
-                  parent_logger.debug msg
                 end
               end
               next
