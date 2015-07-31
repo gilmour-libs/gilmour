@@ -2,7 +2,6 @@
 
 require 'json'
 require 'logger'
-require_relative './stdhijack'
 require_relative './waiter'
 
 # Top level module
@@ -28,23 +27,26 @@ module Gilmour
     attr_reader :logger
     attr_reader :request
 
-    def fork_logger
+    def fork_logger(io_writer)
       logger = Logger.new(STDERR)
       loglevel =  ENV["LOG_LEVEL"] ? ENV["LOG_LEVEL"].to_sym : :warn
       logger.level = Gilmour::LoggerLevels[loglevel] || Logger::WARN
       logger.formatter = proc do |severity, datetime, progname, msg|
-        "#{LOG_PREFIX}#{severity}#{LOG_SEPERATOR}#{msg}"
+        data = "#{LOG_PREFIX}#{severity}#{LOG_SEPERATOR}#{msg}"
+        io_writer.write(data+"\n")
+        io_writer.flush
+        nil
       end
       logger
     end
 
     def make_logger
       logger = Logger.new(STDERR)
-      original_formatter = Logger::Formatter.new
       loglevel =  ENV["LOG_LEVEL"] ? ENV["LOG_LEVEL"].to_sym : :warn
       logger.level = Gilmour::LoggerLevels[loglevel] || Logger::WARN
       logger.formatter = proc do |severity, datetime, progname, msg|
-        original_formatter.call(severity, datetime, @sender, msg)
+        date_format = datetime.strftime("%Y-%m-%d %H:%M:%S")
+        "#{severity[0]} #{date_format} #{@sender} -> #{msg}\n"
       end
       logger
     end
@@ -59,7 +61,6 @@ module Gilmour
       @pipe = IO.pipe
       @publish_pipe = IO.pipe
       @logger = make_logger()
-      @capture_stdout = @backend.capture_stdout? || false
     end
 
     def receive_data(data)
@@ -116,59 +117,50 @@ module Gilmour
       }
     end
 
-    def io_readers(parent_io, waiter)
-      io_threads = []
-
-      parent_io.each do |reader|
-        io_threads << Thread.new {
-          waiter.add 1
-          loop {
-            begin
-              data = reader.readline.chomp
-              if data.empty?
-                next
-              end
-
-              if data.start_with?(LOG_PREFIX)
-                data.split(LOG_PREFIX).each do |msg|
+    # All logs in forked mode are relayed chr
+    def child_io_relay(io_reader, waiter, parent_logger)
+      Thread.new {
+        waiter.add 1
+        loop {
+          begin
+            data = io_reader.readline.chomp
+            if data.start_with?(LOG_PREFIX)
+              data.split(LOG_PREFIX).each do |msg|
+                unless msg.empty?
                   msg_grp = msg.split(LOG_SEPERATOR, 2)
-
                   if msg_grp.length > 1
                     data = msg_grp[1]
                     case msg_grp[0]
                     when 'INFO'
-                      logger.info data
+                      parent_logger.info data
                     when 'UNKNOWN'
-                      logger.unknown data
+                      parent_logger.unknown data
                     when 'WARN'
-                      logger.warn data
+                      parent_logger.warn data
                     when 'ERROR'
-                      logger.error data
+                      parent_logger.error data
                     when 'FATAL'
-                      logger.fatal data
+                      parent_logger.fatal data
                     else
-                      logger.debug data
+                      parent_logger.debug data
                     end
                   else
-                    logger.debug msg
+                    parent_logger.debug msg
                   end
-
                 end
-                next
               end
-
-              logger.debug data
-            rescue EOFError
-              waiter.done
-            rescue Exception => e
-              GLogger.error e.message
-              GLogger.error e.backtrace
+              next
             end
-          }
-        }
-      end
 
-      io_threads
+            parent_logger.debug data
+          rescue EOFError
+            waiter.done
+          rescue Exception => e
+            GLogger.error e.message
+            GLogger.error e.backtrace
+          end
+        }
+      }
     end
 
     # Called by parent
@@ -180,15 +172,12 @@ module Gilmour
         @read_pipe, @write_pipe = @pipe
         @read_publish_pipe, @write_publish_pipe = @publish_pipe
 
-        out_r, out_w = IO.pipe
-        parent_io = [out_r]
-        child_io = [out_w]
+        io_reader, io_writer = IO.pipe
 
-        if @capture_stdout == true
-          err_r, err_w = IO.pipe
-          child_io << err_w
-          parent_io << err_r
-        end
+        wg = Gilmour::Waiter.new
+        io_threads = []
+        io_threads << child_io_relay(io_reader, wg, @logger)
+        io_threads << pub_relay(wg)
 
         pid = Process.fork do
           @backend.stop
@@ -197,25 +186,19 @@ module Gilmour
           #Close the parent channels in forked process
           @read_pipe.close
           @read_publish_pipe.close
-          parent_io.each{|io| io.close}
+          io_reader.close unless io_reader.closed?
 
           @response_sent = false
-          @logger = fork_logger
 
-          capture_output(child_io, @capture_stdout) {
-            _execute(handler)
-          }
+          @logger = fork_logger(io_writer)
+          _execute(handler)
+          io_writer.close
         end
 
         # Cleanup the writers in Parent process.
-        child_io.each {|io| io.close }
-
+        io_writer.close
         @write_pipe.close
         @write_publish_pipe.close
-
-        wg = Gilmour::Waiter.new
-        io_threads = io_readers(parent_io, wg)
-        io_threads << pub_relay(wg)
 
         begin
           receive_data(@read_pipe.readline)
@@ -248,7 +231,7 @@ module Gilmour
 
         # Cleanup.
         @read_publish_pipe.close
-        parent_io.each{|io| io.close unless io.closed?}
+        io_reader.close unless io_reader.closed?
 
       else
         _execute(handler)
