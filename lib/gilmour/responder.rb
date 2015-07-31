@@ -2,6 +2,8 @@
 
 require 'json'
 require 'logger'
+require_relative './stdhijack'
+require_relative './waiter'
 
 # Top level module
 module Gilmour
@@ -20,8 +22,21 @@ module Gilmour
   end
 
   class Responder
+    LOG_SEPERATOR = '%%'
+    LOG_PREFIX = "#{LOG_SEPERATOR}gilmour#{LOG_SEPERATOR}"
+
     attr_reader :logger
     attr_reader :request
+
+    def fork_logger
+      logger = Logger.new(STDERR)
+      loglevel =  ENV["LOG_LEVEL"] ? ENV["LOG_LEVEL"].to_sym : :warn
+      logger.level = Gilmour::LoggerLevels[loglevel] || Logger::WARN
+      logger.formatter = proc do |severity, datetime, progname, msg|
+        "#{LOG_PREFIX}#{severity}#{LOG_SEPERATOR}#{msg}"
+      end
+      logger
+    end
 
     def make_logger
       logger = Logger.new(STDERR)
@@ -44,6 +59,7 @@ module Gilmour
       @pipe = IO.pipe
       @publish_pipe = IO.pipe
       @logger = make_logger()
+      @capture_stdout = @backend.capture_stdout? || false
     end
 
     def receive_data(data)
@@ -82,53 +98,129 @@ module Gilmour
       end
     end
 
+    def pub_relay(waiter)
+      Thread.new {
+        waiter.add 1
+        loop {
+          begin
+            data = @read_publish_pipe.readline
+            destination, message = JSON.parse(data)
+            @backend.publish(message, destination)
+          rescue EOFError
+            waiter.done
+          rescue Exception => e
+            GLogger.debug e.message
+            GLogger.debug e.backtrace
+          end
+        }
+      }
+    end
+
+    def io_readers(parent_io, waiter)
+      io_threads = []
+
+      parent_io.each do |reader|
+        io_threads << Thread.new {
+          waiter.add 1
+          loop {
+            begin
+              data = reader.readline.chomp
+              if data.empty?
+                next
+              end
+
+              if data.start_with?(LOG_PREFIX)
+                data.split(LOG_PREFIX).each do |msg|
+                  msg_grp = msg.split(LOG_SEPERATOR, 2)
+
+                  if msg_grp.length > 1
+                    data = msg_grp[1]
+                    case msg_grp[0]
+                    when 'INFO'
+                      logger.info data
+                    when 'UNKNOWN'
+                      logger.unknown data
+                    when 'WARN'
+                      logger.warn data
+                    when 'ERROR'
+                      logger.error data
+                    when 'FATAL'
+                      logger.fatal data
+                    else
+                      logger.debug data
+                    end
+                  else
+                    logger.debug msg
+                  end
+
+                end
+                next
+              end
+
+              logger.debug data
+            rescue EOFError
+              waiter.done
+            rescue Exception => e
+              GLogger.error e.message
+              GLogger.error e.backtrace
+            end
+          }
+        }
+      end
+
+      io_threads
+    end
+
     # Called by parent
     # :nodoc:
     def execute(handler)
       if @multi_process
         GLogger.debug "Executing #{@sender} in forked moode"
-        @read_pipe = @pipe[0]
-        @write_pipe = @pipe[1]
 
-        @read_publish_pipe = @publish_pipe[0]
-        @write_publish_pipe = @publish_pipe[1]
+        @read_pipe, @write_pipe = @pipe
+        @read_publish_pipe, @write_publish_pipe = @publish_pipe
+
+        out_r, out_w = IO.pipe
+        parent_io = [out_r]
+        child_io = [out_w]
+
+        if @capture_stdout == true
+          err_r, err_w = IO.pipe
+          child_io << err_w
+          parent_io << err_r
+        end
 
         pid = Process.fork do
           @backend.stop
           EventMachine.stop_event_loop
+
+          #Close the parent channels in forked process
           @read_pipe.close
           @read_publish_pipe.close
+          parent_io.each{|io| io.close}
+
           @response_sent = false
-          _execute(handler)
+          @logger = fork_logger
+
+          capture_output(child_io, @capture_stdout) {
+            _execute(handler)
+          }
         end
+
+        # Cleanup the writers in Parent process.
+        child_io.each {|io| io.close }
 
         @write_pipe.close
         @write_publish_pipe.close
 
-        pub_mutex = Mutex.new
-
-        pub_reader = Thread.new {
-          loop {
-            begin
-              data = @read_publish_pipe.readline
-              pub_mutex.synchronize do
-                destination, message = JSON.parse(data)
-                @backend.publish(message, destination)
-              end
-            rescue EOFError
-              # awkward blank rescue block
-            rescue Exception => e
-              GLogger.debug e.message
-              GLogger.debug e.backtrace
-            end
-          }
-        }
+        wg = Gilmour::Waiter.new
+        io_threads = io_readers(parent_io, wg)
+        io_threads << pub_relay(wg)
 
         begin
           receive_data(@read_pipe.readline)
         rescue EOFError => e
           logger.debug e.message
-          logger.debug "EOFError caught in responder.rb, because of nil response"
         end
 
         pid, status = Process.waitpid2(pid)
@@ -146,12 +238,18 @@ module Gilmour
           write_response(@sender, msg, 500)
         end
 
-        pub_mutex.synchronize do
-          pub_reader.kill
+        @read_pipe.close
+
+        wg.wait do
+          io_threads.each { |th|
+            th.kill
+          }
         end
 
-        @read_pipe.close
+        # Cleanup.
         @read_publish_pipe.close
+        parent_io.each{|io| io.close unless io.closed?}
+
       else
         _execute(handler)
       end
@@ -162,7 +260,7 @@ module Gilmour
     # supplied at setup.
     def emit_error(message, code = 500, extra = {})
       opts = {
-        topic: @request.topic, 
+        topic: @request.topic,
         request_data: @request.body,
         userdata: JSON.generate(extra || {}),
         sender: @sender,
