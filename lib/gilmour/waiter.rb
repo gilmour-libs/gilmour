@@ -13,9 +13,10 @@ module Gilmour
 
     def done
       synchronize do
-        @count -= n
+        @count -= 1
         if @count == 0
-          signal
+          @done = true
+          @waiter_c.broadcast
         end
       end
     end
@@ -33,7 +34,11 @@ module Gilmour
     end
 
     def wait(timeout=nil)
-      synchronize { @waiter_c.wait(@waiter_m, timeout) unless @done }
+      synchronize do
+        while !@done
+          @waiter_c.wait(@waiter_m, timeout)
+        end
+      end
       yield if block_given?
     end
   end

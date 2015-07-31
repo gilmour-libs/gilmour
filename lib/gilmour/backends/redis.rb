@@ -42,9 +42,6 @@ module Gilmour
       @report_errors = opts["broadcast_errors"] || opts[:broadcast_errors]
       @report_errors = true if @report_errors != false
 
-      @capture_stdout = opts["capture_stdout"] || opts[:capture_stdout]
-      @capture_stdout = false if @capture_stdout != true
-
       @ident = generate_ident
     end
 
@@ -54,10 +51,6 @@ module Gilmour
 
     def generate_ident
       "#{Socket.gethostname}-pid-#{Process.pid}-uuid-#{SecureRandom.uuid}"
-    end
-
-    def capture_stdout?
-      @capture_stdout
     end
 
     def report_health?
