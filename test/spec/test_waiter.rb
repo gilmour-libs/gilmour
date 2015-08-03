@@ -106,16 +106,7 @@ describe 'TestAddGroup' do
 
     it "Signal should raise when using add" do
       wg = Gilmour::Waiter.new
-
-      arr = []
-
-      Thread.new {
-        wg.add 1
-        sleep(2)
-        arr << true
-        wg.done
-      }
-
+      wg.add 1
       expect{wg.signal}.to raise_error(RuntimeError)
     end
 
