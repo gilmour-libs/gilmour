@@ -8,7 +8,7 @@ describe 'TestAddGroup' do
     it "Wait should return instantly" do
       wg = Gilmour::Waiter.new
 
-      num = 3
+      num = 2
       arr = []
 
       num.times do
