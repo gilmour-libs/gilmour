@@ -8,7 +8,8 @@ require_relative 'helpers/connection'
 
 describe 'TestSubscriberFork' do
   opts = redis_connection_options
-  opts[:broadcast_errors] = true
+  opts['health_check'] = false
+  opts['capture_stdout'] = true
 
   test_subscriber_path = './testservice/subscribers/test_subscriber'
   after(:all) do
@@ -34,7 +35,7 @@ describe 'TestSubscriberFork' do
     before(:all) do
       @service = TestServiceBase.new(opts, 'redis')
     end
-    Given(:connection_opts) { redis_connection_options }
+    Given(:connection_opts) { opts }
     before(:all) do
       @service.registered_subscribers.each do |s|
         s.backend = 'redis'
@@ -108,8 +109,6 @@ describe 'TestSubscriberFork' do
         waiter_code = Waiter.new
         code = nil
 
-        #backend = @service.get_backend("redis")
-        #backend.broadcast_errors = true
         error_listener_proc = sub.add_listener Gilmour::ErrorChannel do |d, c|
           waiter_error.signal
         end
@@ -123,11 +122,37 @@ describe 'TestSubscriberFork' do
         waiter_error.wait(5)
 
         sub.remove_listener Gilmour::ErrorChannel, error_listener_proc
-        #backend.broadcast_errors = false
         code
       end
       Then do
         code.should be == 500
+      end
+    end
+
+    context 'Exception data' do
+      Given(:ping_opts) do
+        redis_ping_options
+      end
+
+      When(:sub) do
+        Gilmour::RedisBackend.new({})
+      end
+      When(:code) do
+        waiter_error = Waiter.new
+        code = nil
+
+        error_listener_proc = sub.add_listener Gilmour::ErrorChannel do
+          code = request.body['code']
+          waiter_error.signal
+        end
+
+        sub.publish(3, TestSubscriber::TimeoutTopic)
+        waiter_error.wait(5)
+        sub.remove_listener Gilmour::ErrorChannel, error_listener_proc
+        code
+      end
+      Then do
+        code.should be == 504
       end
     end
 
@@ -181,7 +206,7 @@ describe 'TestSubscriberFork' do
       end
     end
 
-    context 'Send and receive a message' do
+    context 'Send and receive a message', :debug do
       Given(:ping_opts) { redis_ping_options }
       When(:sub) do
         Gilmour::RedisBackend.new({})
@@ -255,6 +280,56 @@ describe 'TestSubscriberFork' do
       end
     end
 
+    context 'Check Exclusive Parallelism' do
+      Given(:ping_opts) { redis_ping_options }
+      When(:sub) do
+        Gilmour::RedisBackend.new({})
+      end
+      When (:response) do
+        waiter = Waiter.new
+
+        actual_ret = []
+
+        sub.add_listener TestSubscriber::ExclusiveTimeoutReturn do
+          actual_ret.push(request.body)
+        end
+
+        3.times do
+          sub.publish(3, TestSubscriber::ExclusiveTimeoutTopic)
+        end
+
+        waiter.wait(5)
+        actual_ret
+      end
+      Then do
+        response.select { |e| e == "2" }.size.should == 3
+      end
+    end
+
+    context 'Check Parallelism' do
+      Given(:ping_opts) { redis_ping_options }
+      When(:sub) do
+        Gilmour::RedisBackend.new({})
+      end
+      When (:response) do
+        waiter = Waiter.new
+
+        actual_ret = []
+
+        sub.add_listener TestSubscriber::MultiTimeoutReturn do
+          actual_ret.push(request.body)
+        end
+
+        sub.publish(3, TestSubscriber::MultiTimeoutTopic)
+
+        waiter.wait(5)
+        actual_ret
+      end
+      Then do
+        response.select { |e| e == "2" }.size.should == 3
+      end
+    end
+
     context 'Send once, Receive Once' do
       Given(:ping_opts) { redis_ping_options }
       When(:sub) do
@@ -278,5 +353,45 @@ describe 'TestSubscriberFork' do
         response.size.should == 1
       end
     end
+
+    context 'Handler to Test exits with LPush' do
+      Given(:ping_opts) do
+        redis_ping_options
+      end
+
+      When(:sub) do
+        Gilmour::RedisBackend.new({})
+      end
+      When(:code) do
+        code = nil
+
+        error_key = "hello.world"
+        backend = @service.get_backend("redis")
+        backend.report_errors = error_key
+
+        sub.publish(1, TestSubscriber::ExitTopic)
+
+        waiter = Waiter.new
+
+        Thread.new{
+          loop {
+            sub.publisher.lpop(error_key) do |val|
+              if val.is_a? String
+                code = 500
+                waiter.signal
+              end
+            end
+            sleep 1
+          }
+        }
+
+        waiter.wait(6)
+        code
+      end
+      Then do
+        code.should be == 500
+      end
+    end
+
   end
 end

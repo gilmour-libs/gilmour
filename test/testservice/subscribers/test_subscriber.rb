@@ -1,4 +1,10 @@
 class TestSubscriber < TestServiceBase
+  ExclusiveTimeoutTopic = 'test.exclusive_topic'
+  ExclusiveTimeoutReturn = 'test.exclusive_return'
+
+  MultiTimeoutTopic = 'test.multi_timeout'
+  MultiTimeoutReturn = 'test.multi_return'
+
   TimeoutTopic = "test.timeout"
   Topic = 'test.topic'
   WildcardTopic = 'test.wildcard.*'
@@ -29,6 +35,23 @@ class TestSubscriber < TestServiceBase
     listen_to GroupTopic do
       publish(request.body, TestSubscriber::GroupReturn)
       publish("2", TestSubscriber::GroupReturn)
+    end
+  end
+
+
+  listen_to ExclusiveTimeoutTopic, {exclusive: true} do
+    data, _, _ = Gilmour::Protocol.parse_response(request.body)
+    logger.info "Will sleep for #{data} seconds now. But allowed timeout is 2."
+    sleep data
+    publish("2", TestSubscriber::ExclusiveTimeoutReturn)
+  end
+
+  3.times do
+    listen_to MultiTimeoutTopic do
+      data, _, _ = Gilmour::Protocol.parse_response(request.body)
+      logger.info "Will sleep for #{data} seconds now. But allowed timeout is 2."
+      sleep data
+      publish("2", TestSubscriber::MultiTimeoutReturn)
     end
   end
 

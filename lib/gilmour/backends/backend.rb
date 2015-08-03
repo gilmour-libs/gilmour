@@ -1,4 +1,6 @@
 # encoding: utf-8
+require 'socket'
+require 'securerandom'
 
 require_relative '../protocol'
 require_relative '../composers'
@@ -14,10 +16,17 @@ module Gilmour
     include Gilmour::Composers
     attr_accessor :broadcast_errors
 
-    def initialize(opts={})
-      if opts["broadcast_errors"] || opts[:broadcast_errors]
-        self.broadcast_errors = true
-      end
+    def report_errors?
+      #Override this method to adjust if you want errors to be reported.
+      return false
+    end
+
+    def register_health_check
+      raise NotImplementedError.new
+    end
+
+    def unregister_health_check
+      raise NotImplementedError.new
     end
 
     def self.implements(backend_name)
@@ -52,6 +61,7 @@ module Gilmour
     #
     def publish(message, destination, opts = {}, code = 0, &blk)
       payload, sender = Gilmour::Protocol.create_request(message, code)
+
       EM.defer do # Because publish can be called from outside the event loop
         begin
           send_message(sender, destination, payload, opts, &blk)
@@ -84,6 +94,10 @@ module Gilmour
     def broadcast(message, destination, opts = {}, code = 0, &blk)
       request(message, destination, opts, code, &blk)
       signal(message, destination, opts)
+    end
+
+    def emit_error(message)
+      raise NotImplementedError.new
     end
 
     # Adds a new handler for the given _topic_

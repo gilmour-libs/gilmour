@@ -18,7 +18,6 @@ end
 
 describe 'TestSubscriber' do
   opts = redis_connection_options
-  opts[:health_check] = true
 
   test_subscriber_path = './testservice/subscribers/test_subscriber'
   after(:all) do
@@ -119,6 +118,33 @@ describe 'TestSubscriber' do
       end
     end
 
+    context 'Exception data' do
+      Given(:ping_opts) do
+        redis_ping_options
+      end
+
+      When(:sub) do
+        Gilmour::RedisBackend.new({})
+      end
+      When(:code) do
+        waiter_error = Waiter.new
+        code = nil
+
+        error_listener_proc = sub.add_listener Gilmour::ErrorChannel do
+          code = request.body['code']
+          waiter_error.signal
+        end
+
+        sub.publish(3, TestSubscriber::TimeoutTopic)
+        waiter_error.wait(5)
+        sub.remove_listener Gilmour::ErrorChannel, error_listener_proc
+        code
+      end
+      Then do
+        code.should be == 504
+      end
+    end
+
     context 'Handler sleeps longer than the Timeout' do
       Given(:ping_opts) do
         redis_ping_options
@@ -132,9 +158,7 @@ describe 'TestSubscriber' do
         waiter_code = Waiter.new
         code = nil
 
-        backend = @service.get_backend("redis")
-        backend.broadcast_errors = true
-        sub.add_listener Gilmour::ErrorChannel do
+        error_listener_proc = sub.add_listener Gilmour::ErrorChannel do
           waiter_error.signal
         end
 
@@ -146,7 +170,8 @@ describe 'TestSubscriber' do
         waiter_code.wait(5)
         waiter_error.wait(5)
 
-        backend.broadcast_errors = false
+        sub.remove_listener Gilmour::ErrorChannel, error_listener_proc
+
         code
       end
       Then do
@@ -239,7 +264,7 @@ describe 'TestSubscriber' do
 
     end
 
-    context 'Send and receive a message' do
+    context 'Send and receive a message', :debug do
       Given(:ping_opts) { redis_ping_options }
       When(:sub) do
         Gilmour::RedisBackend.new({})

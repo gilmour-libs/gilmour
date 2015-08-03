@@ -1,6 +1,8 @@
 # encoding: utf-8
 
-require "logger"
+require 'json'
+require 'logger'
+require_relative './waiter'
 
 # Top level module
 module Gilmour
@@ -9,34 +11,58 @@ module Gilmour
   # The public methods in this class are available to be called
   # from the body of the handlers directly
 
+  class Request
+    attr_reader :topic, :body
+
+    def initialize(topic, body)
+      @topic = topic
+      @body = body
+    end
+  end
+
   class Responder
+    LOG_SEPERATOR = '%%'
+    LOG_PREFIX = "#{LOG_SEPERATOR}gilmour#{LOG_SEPERATOR}"
+
     attr_reader :logger
     attr_reader :request
 
-    def make_logger
+    def child_logger(writer)
       logger = Logger.new(STDERR)
-      original_formatter = Logger::Formatter.new
       loglevel =  ENV["LOG_LEVEL"] ? ENV["LOG_LEVEL"].to_sym : :warn
       logger.level = Gilmour::LoggerLevels[loglevel] || Logger::WARN
       logger.formatter = proc do |severity, datetime, progname, msg|
-        log_msg = original_formatter.call(severity, datetime, @sender, msg)
-        @log_stack.push(log_msg)
-        log_msg
+        data = JSON.generate(severity: severity, msg: msg)
+#        data = "#{LOG_PREFIX}#{severity}#{LOG_SEPERATOR}#{msg}"
+        writer.write(data+"\n")
+        writer.flush
+        nil
+      end
+      logger
+    end
+
+    def make_logger
+      logger = Logger.new(STDERR)
+      loglevel =  ENV["LOG_LEVEL"] ? ENV["LOG_LEVEL"].to_sym : :warn
+      logger.level = Gilmour::LoggerLevels[loglevel] || Logger::WARN
+      logger.formatter = proc do |severity, datetime, progname, msg|
+        date_format = datetime.strftime("%Y-%m-%d %H:%M:%S")
+        "#{severity[0]} #{date_format} #{@sender} -> #{msg}\n"
       end
       logger
     end
 
     def initialize(sender, topic, data, backend, opts={})
       @sender = sender
-      @request = Mash.new(topic: topic, body: data)
+      @request = Request.new(topic, data)
       @response = { data: nil, code: nil }
       @backend = backend
       @timeout = opts[:timeout] || 600
       @multi_process = opts[:fork] || false
       @respond = opts[:respond]
-      @pipe = IO.pipe
-      @publish_pipe = IO.pipe
-      @log_stack = []
+      @response_pipe = IO.pipe
+      @logger_pipe = IO.pipe
+      @command_pipe = IO.pipe
       @logger = make_logger()
       @delayed_response = false
     end
@@ -50,6 +76,9 @@ module Gilmour
     # Called by parent
     def write_response(sender, data, code)
       return unless @respond
+      if code >= 300 && @backend.report_errors?
+        emit_error data, code
+      end
       @backend.send_response(sender, data, code)
     end
 
@@ -102,100 +131,140 @@ module Gilmour
       @delayed_response
     end
 
-    # Called by parent
-    # :nodoc:
-    def execute(handler)
-      if @multi_process
-        GLogger.debug "Executing #{@sender} in forked moode"
-        @read_pipe = @pipe[0]
-        @write_pipe = @pipe[1]
+    def command_relay(reader, waiter)
+      waiter.add
+      pub_mutex = Mutex.new
 
-        @read_publish_pipe = @publish_pipe[0]
-        @write_publish_pipe = @publish_pipe[1]
-
-        pid = Process.fork do
-          @backend.stop
-          EventMachine.stop_event_loop
-          @read_pipe.close
-          @read_publish_pipe.close
-          @response_sent = false
-          _execute(handler)
-        end
-
-        @write_pipe.close
-        @write_publish_pipe.close
-
-        pub_mutex = Mutex.new
-
-        pub_reader = Thread.new {
-          loop {
-            begin
-              data = @read_publish_pipe.readline
-              pub_mutex.synchronize do
-                method, args = JSON.parse(data)
-                @backend.send(method.to_sym, *args)
-              end
-            rescue EOFError
-              # awkward blank rescue block
-            rescue Exception => e
-              GLogger.debug e.message
-              GLogger.debug e.backtrace
+      Thread.new do
+        loop do
+          begin
+            data = reader.readline
+            pub_mutex.synchronize do
+              method, args = JSON.parse(data)
+              @backend.send(method.to_sym, *args)
             end
-          }
-        }
-
-        begin
-          receive_data(@read_pipe.readline)
-        rescue EOFError => e
-          logger.debug e.message
-          logger.debug "EOFError caught in responder.rb, because of nil response"
-        end
-
-        pid, status = Process.waitpid2(pid)
-        if !status
-          msg = "Child Process #{pid} crashed without status."
-          logger.error msg
-          # Set the multi-process mode as false, the child has died anyway.
-          @multi_process = false
-          emit_error :description => msg
-          write_response(@sender, msg, 500)
-        elsif status.exitstatus > 0
-          msg = "Child Process #{pid} exited with status #{status.exitstatus}"
-          logger.error msg
-          # Set the multi-process mode as false, the child has died anyway.
-          @multi_process = false
-          emit_error :description => msg
-          write_response(@sender, msg, 500)
-        end
-
-        pub_mutex.synchronize do
-          pub_reader.kill
-        end
-
-        @read_pipe.close
-        @read_publish_pipe.close
-      else
-        _execute(handler)
-      end
+          rescue EOFError
+            waiter.done
+            break
+          rescue Exception => e
+            GLogger.debug e.message
+            GLogger.debug e.backtrace
+          end
+        end 
+      end 
     end
 
-    def emit_error(extra={})
-      opts = {
-        :topic => @request[:topic],
-        :description => '',
-        :sender => @sender,
-        :multi_process => @multi_process,
-        :code => 500
-      }.merge(extra || {})
+    # All logs in forked mode are relayed chr
+    def logger_relay(read_logger_pipe, waiter, parent_logger)
+      waiter.add 1
+      Thread.new do
+        loop do
+          begin
+            data = read_logger_pipe.readline.chomp
+            logdata = JSON.parse(data)
+            meth = logdata['severity'].downcase.to_sym
+            parent_logger.send(meth, logdata['msg'])
+          rescue JSON::ParserError
+            parent_logger.info data
+            next
+          rescue EOFError
+            waiter.done
+            break
+          rescue Exception => e
+            GLogger.error e.message
+            GLogger.error e.backtrace
+          end
+        end #loop
+      end 
+    end
 
-      # Publish all errors on gilmour.error
-      # This may or may not have a listener based on the configuration
-      # supplied at setup.
-      if @backend.broadcast_errors
-        opts[:timestamp] = Time.now.getutc
-        payload = {:traceback => @log_stack, :extra => opts}
-        publish(payload, Gilmour::ErrorChannel, {}, 500)
+  # Called by parent
+    # :nodoc:
+    def execute(handler)
+      if !@multi_process
+        _execute(handler)
+        return
       end
+      GLogger.debug "Executing #{@sender} in forked moode"
+
+      # Create pipes for child communication
+      @read_pipe, @write_pipe = @response_pipe
+      @read_command_pipe, @write_command_pipe = @command_pipe
+      @read_logger_pipe, @write_logger_pipe = @logger_pipe = IO.pipe
+
+      # setup relay threads
+      wg = Gilmour::Waiter.new
+      relay_threads = []
+      relay_threads << logger_relay(@read_logger_pipe, wg, @logger)
+      relay_threads << command_relay(@read_command_pipe, wg)
+
+      pid = Process.fork do
+        @backend.stop
+        EventMachine.stop_event_loop
+
+        #Close the parent channels in forked process
+        @read_pipe.close
+        @read_command_pipe.close
+        @read_logger_pipe.close
+
+        @response_sent = false
+
+        # override the logger for the child
+        @logger = child_logger(@write_logger_pipe)
+        _execute(handler)
+        @write_logger_pipe.close
+      end
+
+      # Cleanup the writers in Parent process.
+      @write_logger_pipe.close
+      @write_pipe.close
+      @write_command_pipe.close
+
+      begin
+        receive_data(@read_pipe.readline)
+      rescue EOFError => e
+        logger.debug e.message
+      end
+
+      pid, status = Process.waitpid2(pid)
+      if !status || status.exitstatus > 0
+        msg = if !status
+                "Child Process #{pid} crashed without status."
+              else
+                "Child Process #{pid} exited with status #{status.exitstatus}"
+              end
+        logger.error msg
+        # Set the multi-process mode as false, the child has died anyway.
+        @multi_process = false
+        write_response(@sender, msg, 500)
+      end
+
+      @read_pipe.close
+
+      # relay cleanup.
+      wg.wait do
+        relay_threads.each { |th| th.kill }
+      end
+      @read_command_pipe.close
+      @read_logger_pipe.close
+    end
+
+    # Publish all errors on gilmour.error
+    # This may or may not have a listener based on the configuration
+    # supplied at setup.
+    def emit_error(message, code = 500, extra = {})
+      opts = {
+        topic: @request.topic,
+        request_data: @request.body,
+        userdata: JSON.generate(extra || {}),
+        sender: @sender,
+        multi_process: @multi_process,
+        timestamp: Time.now.getutc
+      }
+
+      payload = { backtrace: message, code: code }
+      payload.merge!(opts)
+      @backend.emit_error payload
     end
 
     # Called by child
@@ -208,14 +277,14 @@ module Gilmour
         end
       rescue Timeout::Error => e
         logger.error e.message
-        logger.warn e.backtrace
+        logger.error e.backtrace
         @response[:code] = 504
-        emit_error :code => 504, :description => e.message
+        @response[:data] = e.message
       rescue Exception => e
-        logger.debug e.message
-        logger.debug e.backtrace
+        logger.error e.message
+        logger.error e.backtrace
         @response[:code] = 500
-        emit_error :description => e.message
+        @response[:data] = e.message
       end
       @response[:code] ||= 200 if @respond && !delayed_response?
       send_response if @response[:code]
@@ -223,8 +292,8 @@ module Gilmour
 
     def call_parent_backend_method(method, *args)
       msg = JSON.generate([method, args])
-      @write_publish_pipe.write(msg+"\n")
-      @write_publish_pipe.flush
+      @write_command_pipe.write(msg+"\n")
+      @write_command_pipe.flush
     end
 
     # Publishes a message. See Backend::publish
@@ -236,8 +305,8 @@ module Gilmour
         call_parent_backend_method('publish', message, destination, opts, code)
 #        method = opts[:method] || 'publish'
 #        msg = JSON.generate([method, [message, destination, opts, code]])
-#        @write_publish_pipe.write(msg+"\n")
-#        @write_publish_pipe.flush
+#        @write_command_pipe.write(msg+"\n")
+#        @write_command_pipe.flush
       elsif block_given?
         @backend.publish(message, destination, opts, &blk)
       else
