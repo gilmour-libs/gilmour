@@ -14,7 +14,7 @@ module Gilmour
     def done
       synchronize do
         @count -= 1
-        if @count == 0
+        if @count <= 0
           @done = true
           @waiter_c.broadcast
         end
@@ -26,6 +26,10 @@ module Gilmour
     end
 
     def signal
+      if @count != 0
+        raise 'Cannot use signal alongside add/done'
+      end
+
       synchronize do
         @done = true
         @count = 0
@@ -34,31 +38,8 @@ module Gilmour
     end
 
     def wait(timeout=nil)
-      synchronize do
-        while !@done
-          @waiter_c.wait(@waiter_m, timeout)
-        end
-      end
+      synchronize { @waiter_c.wait(@waiter_m, timeout) unless @done }
       yield if block_given?
     end
   end
-end
-
-def test
-  wg = Gilmour::Waiter.new
-  wg.add 3
-
-  3.times do
-    Thread.new {
-      t = rand(10000) / 10000.0
-      sleep(t)
-      puts "done\n"
-      wg.done
-    }
-  end
-
-  wg.wait do
-    puts "All jobs done"
-  end
-
 end
