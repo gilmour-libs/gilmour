@@ -14,3 +14,4 @@ script:
   - bundle exec rspec spec/test_service_base.rb -b --format documentation
   - bundle exec rspec spec/test_subscriber_redis.rb -b --format documentation
   - bundle exec rspec spec/test_subscriber_redis_forked.rb -b --format documentation
+  - bundle exec rspec spec/test_waiter.rb -b --format documentation
