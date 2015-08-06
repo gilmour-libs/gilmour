@@ -206,7 +206,7 @@ describe 'TestSubscriberFork' do
       end
     end
 
-    context 'Send and receive a message' do
+    context 'Send and receive a message', :debug do
       Given(:ping_opts) { redis_ping_options }
       When(:sub) do
         Gilmour::RedisBackend.new({})
@@ -375,7 +375,6 @@ describe 'TestSubscriberFork' do
 
         Thread.new{
           loop {
-            $stderr.puts "Checking values"
             sub.publisher.lpop(error_key) do |val|
               if val.is_a? String
                 code = 500

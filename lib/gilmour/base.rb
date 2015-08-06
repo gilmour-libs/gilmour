@@ -68,9 +68,7 @@ module Gilmour
       #       finish the task. If the execution exceeds the timeout, gilmour
       #       responds with status {code:409, data: nil}
       #
-      def listen_to(topic, opts={})
-        handler = Proc.new
-
+      def listen_to(topic, opts={}, &handler)
         opt_defaults = {
           exclusive: false,
           timeout: 600,
@@ -84,7 +82,21 @@ module Gilmour
         @@subscribers[topic] ||= []
         @@subscribers[topic] << opt_defaults
       end
+      alias_method :add_listener, :listen_to
 
+      def reply_to(topic, opts={}, &handler)
+        defopts = opts.merge({
+          type: :reply
+        })
+        listen_to(topic, defopts, &handler)
+      end
+
+      def slot(topic, opts={}, &handler)
+        defopts = opts.merge({
+          type: :slot
+        })
+        listen_to(topic, defopts, &handler)
+      end
       # Returns the list of subscribers for _topic_ or all subscribers if it is nil
       def subscribers(topic = nil)
         if topic
@@ -134,7 +146,6 @@ module Gilmour
       subs_by_backend = subs_grouped_by_backend
       subs_by_backend.each do |b, subs|
         backend = get_backend(b)
-        backend.setup_subscribers(subs)
         if backend.report_health?
           backend.unregister_health_check
         end
@@ -148,14 +159,22 @@ module Gilmour
       subs_by_backend = subs_grouped_by_backend
       subs_by_backend.each do |b, subs|
         backend = get_backend(b)
-        backend.setup_subscribers(subs)
-
+        subs.each do |topic, handlers|
+          handlers.each do |handler|
+            if handler[:type] == :slot
+              backend.slot(topic, handler)
+            elsif handler[:type] == :reply
+              backend.reply_to(topic, handler)
+            else
+              backend.add_listener(topic, handler)
+            end
+          end
+        end
         if backend.report_health?
           backend.register_health_check
         end
       end
-
-      if startloop
+      if startloop #Move into redis backend
         GLogger.debug 'Joining EM event loop'
         EM.reactor_thread.join
       end

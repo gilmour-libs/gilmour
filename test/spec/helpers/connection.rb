@@ -25,12 +25,11 @@ def redis_wildcard_options
 end
 
 def redis_publish_async(options, message, key)
-  operation = proc do
-    redis = EM::Hiredis.connect
+  redis = EM::Hiredis.connect
+  EM.defer do
     payload, _ = Gilmour::Protocol.create_request(message)
     redis.publish(key, payload)
   end
-  EM.defer(operation)
 end
 
 def redis_send_and_recv(options, message, key)

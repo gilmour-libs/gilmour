@@ -166,17 +166,25 @@ module Gilmour
       @subscriptions.keys
     end
 
-    def setup_subscribers(subs = {})
-      @subscriptions.merge!(subs)
-      EM.defer do
-        subs.keys.each { |topic| subscribe_topic(topic) }
+    def reply_to(topic, opts={}, &blk)
+      if topic.index('*')
+        raise ArgumentError.new("Subscribers cannot have wildcard topics")
       end
+      super
     end
 
-    def add_listener(topic, &handler)
+    def add_listener(topic, opts = {}, &blk)
+      if opts[:excl] && exclusive_group(opts).empty?
+        raise ArgumentError.new("Invalid exclusive group")
+      end
+      opts[:handler] ||= blk
       @subscriptions[topic] ||= []
-      @subscriptions[topic] << { handler: handler }
-      subscribe_topic(topic)
+      @subscriptions[topic] << opts
+      EM.next_tick { subscribe_topic(topic) }
+    end
+
+    def listeners(topic)
+      @subscriptions[topic] || []
     end
 
     def remove_listener(topic, handler = nil)
@@ -189,25 +197,25 @@ module Gilmour
       @subscriber.unsubscribe(topic) if @subscriptions[topic].empty?
     end
 
-    def send(sender, destination, payload, opts = {}, &blk)
+    def send_message(sender, destination, payload, opts = {}, &blk)
       timeout = opts[:timeout] || 600
       if opts[:confirm_subscriber]
         confirm_subscriber(destination) do |present|
           if !present
             blk.call(nil, 404) if blk
           else
-            _send(sender, destination, payload, timeout, &blk)
+            _send_message(sender, destination, payload, timeout, &blk)
           end
         end
       else
-        _send(sender, destination, payload, timeout, &blk)
+        _send_message(sender, destination, payload, timeout, &blk)
       end
     rescue Exception => e
       GLogger.debug e.message
       GLogger.debug e.backtrace
     end
 
-    def _send(sender, destination, payload, timeout, &blk)
+    def _send_message(sender, destination, payload, timeout, &blk)
       register_response(sender, blk, timeout) if block_given?
       @publisher.publish(destination, payload)
       sender
