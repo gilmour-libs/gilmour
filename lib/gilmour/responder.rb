@@ -4,13 +4,12 @@ require 'json'
 require 'logger'
 require_relative './waiter'
 
-# Top level module
 module Gilmour
+
   # The Responder module that provides the request and respond
   # DSL
   # The public methods in this class are available to be called
   # from the body of the handlers directly
-
   class Request
     attr_reader :topic, :body
 
@@ -20,6 +19,10 @@ module Gilmour
     end
   end
 
+  # Every request handler is executed in the context of a Responder
+  # object.
+  # This class contains methods to respond to requests as well as
+  # proxy methods for carrying out gilmour actions inside the handlers.
   class Responder
     LOG_SEPERATOR = '%%'
     LOG_PREFIX = "#{LOG_SEPERATOR}gilmour#{LOG_SEPERATOR}"
@@ -27,7 +30,7 @@ module Gilmour
     attr_reader :logger
     attr_reader :request
 
-    def child_logger(writer)
+    def child_logger(writer) #:nodoc:
       logger = Logger.new(STDERR)
       loglevel =  ENV["LOG_LEVEL"] ? ENV["LOG_LEVEL"].to_sym : :warn
       logger.level = Gilmour::LoggerLevels[loglevel] || Logger::WARN
@@ -41,7 +44,7 @@ module Gilmour
       logger
     end
 
-    def make_logger
+    def make_logger #:nodoc:
       logger = Logger.new(STDERR)
       loglevel =  ENV["LOG_LEVEL"] ? ENV["LOG_LEVEL"].to_sym : :warn
       logger.level = Gilmour::LoggerLevels[loglevel] || Logger::WARN
@@ -52,7 +55,7 @@ module Gilmour
       logger
     end
 
-    def initialize(sender, topic, data, backend, opts={})
+    def initialize(sender, topic, data, backend, opts={}) #:nodoc:
       @sender = sender
       @request = Request.new(topic, data)
       @response = { data: nil, code: nil }
@@ -67,14 +70,14 @@ module Gilmour
       @delayed_response = false
     end
 
-    def receive_data(data)
+    def receive_data(data) #:nodoc:
       sender, res_data, res_code, opts = JSON.parse(data)
       res_code ||= 200 if @respond
       write_response(sender, res_data, res_code) if sender && res_code
     end
 
     # Called by parent
-    def write_response(sender, data, code)
+    def write_response(sender, data, code) #:nodoc:
       return unless @respond
       if code >= 300 && @backend.report_errors?
         emit_error data, code
@@ -82,7 +85,7 @@ module Gilmour
       @backend.send_response(sender, data, code)
     end
 
-    # Adds a dynamic listener for _topic_
+    # proxy to base add_listener
     def add_listener(topic, opts={}, &handler)
       if @multi_process
         GLogger.error "Dynamic listeners using add_listener not supported \
@@ -92,6 +95,7 @@ module Gilmour
       @backend.add_listener(topic, &handler)
     end
 
+    # Proxy to register slot (see Backend#slot for details)
     def slot(topic, opts={}, &handler)
       if @multi_process
         GLogger.error "Dynamic listeners using add_listener not supported \
@@ -101,6 +105,7 @@ module Gilmour
       @backend.slot(topic, opts, &handler)
     end
 
+    # Proxy to register reply listener (see Backend#reply_to for details)
     def reply_to(topic, opts={}, &handler)
       if @multi_process
         GLogger.error "Dynamic listeners using add_listener not supported \
@@ -123,15 +128,20 @@ module Gilmour
       end
     end
 
+    # This prohibits sending a response from a reply handler even after
+    # the request execution has finished. This is useful for sending
+    # a response from inside a closure if the handler has to make further
+    # gilmour requests. To send a response later, call respond with the
+    # option "now" as true.
     def delay_response
       @delayed_response = true
     end
 
-    def delayed_response?
+    def delayed_response? #:nodoc:
       @delayed_response
     end
 
-    def command_relay(reader, waiter)
+    def command_relay(reader, waiter) #:nodoc:
       waiter.add
       pub_mutex = Mutex.new
 
@@ -155,7 +165,7 @@ module Gilmour
     end
 
     # All logs in forked mode are relayed chr
-    def logger_relay(read_logger_pipe, waiter, parent_logger)
+    def logger_relay(read_logger_pipe, waiter, parent_logger) #:nodoc:
       waiter.add 1
       Thread.new do
         loop do
@@ -178,9 +188,8 @@ module Gilmour
       end 
     end
 
-  # Called by parent
-    # :nodoc:
-    def execute(handler)
+    # Called by parent
+    def execute(handler) #:nodoc:
       if !@multi_process
         _execute(handler)
         return
@@ -252,7 +261,7 @@ module Gilmour
     # Publish all errors on gilmour.error
     # This may or may not have a listener based on the configuration
     # supplied at setup.
-    def emit_error(message, code = 500, extra = {})
+    def emit_error(message, code = 500, extra = {}) #:nodoc:
       opts = {
         topic: @request.topic,
         request_data: @request.body,
@@ -268,8 +277,7 @@ module Gilmour
     end
 
     # Called by child
-    # :nodoc:
-    def _execute(handler)
+    def _execute(handler) #:nodoc:
       ret = nil
       begin
         Timeout.timeout(@timeout) do
@@ -290,13 +298,13 @@ module Gilmour
       send_response if @response[:code]
     end
 
-    def call_parent_backend_method(method, *args)
+    def call_parent_backend_method(method, *args) #:nodoc:
       msg = JSON.generate([method, args])
       @write_command_pipe.write(msg+"\n")
       @write_command_pipe.flush
     end
 
-    # Publishes a message. See Backend::publish
+    # Proxy to publish method. See Backend#publish
     def publish(message, destination, opts = {}, code=nil, &blk)
       if @multi_process
         if block_given?
@@ -314,6 +322,7 @@ module Gilmour
       end
     end
 
+    # Proxy to request! method. See Backend#request!
     def request!(message, destination, opts={}, &blk)
       if @multi_process
         if block_given?
@@ -325,6 +334,7 @@ module Gilmour
       end
     end
 
+    # Proxy to signal! method. See Backend#signal!
     def signal!(message, destination, opts={})
       if @multi_process
         call_parent_backend_method('signal!', message, destination, opts)
@@ -335,8 +345,7 @@ module Gilmour
 
 
     # Called by child
-    # :nodoc:
-    def send_response
+    def send_response #:nodoc:
       return if @response_sent
       @response_sent = true
 

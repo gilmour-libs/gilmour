@@ -43,8 +43,7 @@ module Gilmour
       @@subscribers = {} # rubocop:disable all
       @@registered_services = []
 
-      # :nodoc:
-      def inherited(child)
+      def inherited(child) #:nodoc:
         @@registered_services << child
       end
 
@@ -54,19 +53,19 @@ module Gilmour
         @@registered_services
       end
 
+      # This is the underlying layer of communication. Use if you
+      # know what you are doing. Use "reply_to" and "slot" instead.
+      #
       # Adds a listener for the given topic
-      # topic:: The topic to listen to
-      # opts: Hash of optional arguments.
-      #       Supported options are:
-      #
-      #       excl:: If true, this listener is added to a group of listeners
-      #       with the same name as the name of the class in which this method
-      #       is called. A message sent to the _topic_ will be processed by at
-      #       most one listener from a group
-      #
-      #       timeout: Maximum duration (seconds) that a subscriber has to
-      #       finish the task. If the execution exceeds the timeout, gilmour
-      #       responds with status {code:409, data: nil}
+      # +topic+:: The topic to listen to
+      # +opts+:: Hash of optional arguments. Supported options are:
+      #          excl:: If true, this listener is added to a group of listeners
+      #          with the same name as the name of the class in which this
+      #          method is called. A message sent to the _topic_ will be
+      #          processed by at most one listener from a group 
+      #          timeout:: Maximum duration (seconds) that a subscriber has to
+      #          finish the task. If the execution exceeds the timeout, gilmour
+      #          responds with status {code:409, data: nil}
       #
       def listen_to(topic, opts={}, &handler)
         opt_defaults = {
@@ -84,6 +83,7 @@ module Gilmour
       end
       alias_method :add_listener, :listen_to
 
+      # Add a reply listener
       def reply_to(topic, opts={}, &handler)
         defopts = opts.merge({
           type: :reply
@@ -91,13 +91,18 @@ module Gilmour
         listen_to(topic, defopts, &handler)
       end
 
+      # Add a slot listener
       def slot(topic, opts={}, &handler)
         defopts = opts.merge({
           type: :slot
         })
         listen_to(topic, defopts, &handler)
       end
+
       # Returns the list of subscribers for _topic_ or all subscribers if it is nil
+      # Params:
+      # +topic+:: The topic for which to return the subscribers. All subscribers are
+      # returned if this is not provided
       def subscribers(topic = nil)
         if topic
           @@subscribers[topic]
@@ -108,20 +113,19 @@ module Gilmour
 
       # Loads all ruby source files inside _dir_ as subscribers
       # Should only be used inside the parent container class
+      # Params:
+      # +dir+:: relative path of directory to load subscribers from
       def load_all(dir = nil)
         dir ||= (subscribers_path || DEFAULT_SUBSCRIBER_PATH)
         Dir["#{dir}/*.rb"].each { |f| require f }
       end
 
-      # Loads the ruby file at _path_ as a subscriber
-      # Should only be used inside the parent container class
-      def load_subscriber(path)
+      def load_subscriber(path) #:nodoc:
         require path
       end
     end
 
-    # :nodoc:
-    def registered_subscribers
+    def registered_subscribers #:nodoc:
       self.class.registered_subscribers
     end
     ############ End Register ###############
@@ -132,9 +136,13 @@ module Gilmour
     attr_reader :backends
 
     # Enable and return the given backend
-    # Should only be used inside the parent container class
-    # If +opts[:multi_process]+ is true, every request handler will
-    # be run inside a new child process.
+    # Params
+    # +name+:: the backend name (currently only 'redis' is supported)
+    # +opts+:: backend specific options. Options for redis are
+    #          host:: the redis server hostname
+    #          port:: the redis server port
+    #          braodcast_errors:: whether error reorting should be turned on
+    #          health_check:: whether health_check hartbeats should be enabled
     def enable_backend(name, opts = {})
       Gilmour::Backend.load_backend(name)
       @backends ||= {}
@@ -142,6 +150,7 @@ module Gilmour
     end
     alias_method :get_backend, :enable_backend
 
+    # Cleanup the susbcribers and health checks
     def tear_down!
       subs_by_backend = subs_grouped_by_backend
       subs_by_backend.each do |b, subs|
@@ -155,6 +164,9 @@ module Gilmour
     # Starts all the listeners
     # If _startloop_ is true, this method will start it's own
     # event loop and not return till Eventmachine reactor is stopped
+    # Params:
+    # +startloop+:: If true this call with join the eventmachine thred and
+    # block till it is done.
     def start(startloop = false)
       subs_by_backend = subs_grouped_by_backend
       subs_by_backend.each do |b, subs|

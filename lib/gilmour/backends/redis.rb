@@ -45,23 +45,23 @@ module Gilmour
       @ident = generate_ident
     end
 
-    def ident
+    def ident #:nodoc:
       @ident
     end
 
-    def generate_ident
+    def generate_ident #:nodoc:
       "#{Socket.gethostname}-pid-#{Process.pid}-uuid-#{SecureRandom.uuid}"
     end
 
-    def report_health?
+    def report_health? #:nodoc:
       @report_health
     end
 
-    def report_errors?
+    def report_errors? #:nodoc:
       @report_errors
     end
 
-    def emit_error(message)
+    def emit_error(message) #:nodoc:
       report = self.report_errors?
 
       if report == false
@@ -73,7 +73,7 @@ module Gilmour
       end
     end
 
-    def setup_pubsub(opts)
+    def setup_pubsub(opts) #:nodoc:
       @publisher = EM::Hiredis.connect(redis_host(opts))
       @subscriber = @publisher.pubsub_client
       register_handlers
@@ -82,7 +82,7 @@ module Gilmour
       GLogger.debug e.backtrace
     end
 
-    def register_handlers
+    def register_handlers #:nodoc:
       @subscriber.on(:pmessage) do |key, topic, payload|
         pmessage_handler(key, topic, payload)
       end
@@ -100,18 +100,18 @@ module Gilmour
       end
     end
 
-    def subscribe_topic(topic)
+    def subscribe_topic(topic) #:nodoc:
       method = topic.index('*') ? :psubscribe : :subscribe
       @subscriber.method(method).call(topic)
     end
 
-    def pmessage_handler(key, matched_topic, payload)
+    def pmessage_handler(key, matched_topic, payload) #:nodoc:
       @subscriptions[key].each do |subscription|
         EM.defer(->{execute_handler(matched_topic, payload, subscription)})
       end
     end
 
-    def register_response(sender, handler, timeout = 600)
+    def register_response(sender, handler, timeout = 600) #:nodoc:
       topic = "gilmour.response.#{sender}"
       timer = EM::Timer.new(timeout) do # Simulate error response
         GLogger.info "Timeout: Killing handler for #{sender}"
@@ -125,11 +125,11 @@ module Gilmour
       GLogger.debug e.backtrace
     end
 
-    def publish_error(messsage)
+    def publish_error(messsage) #:nodoc:
       publish(messsage, Gilmour::ErrorChannel)
     end
 
-    def queue_error(key, message)
+    def queue_error(key, message) #:nodoc:
       @publisher.lpush(key, message) do
         @publisher.ltrim(key, 0, GilmourErrorBufferLen) do
           Glogger.debug "Error queued"
@@ -137,7 +137,7 @@ module Gilmour
       end
     end
 
-    def acquire_ex_lock(sender)
+    def acquire_ex_lock(sender) #:nodoc:
       @publisher.set(sender, sender, 'EX', 600, 'NX') do |val|
         EM.defer do
           yield val if val && block_given?
@@ -145,7 +145,7 @@ module Gilmour
       end
     end
 
-    def response_handler(sender, payload)
+    def response_handler(sender, payload) #:nodoc:
       data, code, _ = Gilmour::Protocol.parse_response(payload)
       handler = @response_handlers.delete(sender)
       @subscriber.unsubscribe(sender)
@@ -158,22 +158,22 @@ module Gilmour
       GLogger.debug e.backtrace
     end
 
-    def send_response(sender, body, code)
+    def send_response(sender, body, code) #:nodoc:
       publish(body, "gilmour.response.#{sender}", {}, code)
     end
 
-    def get_subscribers
+    def get_subscribers #:nodoc:
       @subscriptions.keys
     end
 
-    def reply_to(topic, opts={}, &blk)
+    def reply_to(topic, opts={}, &blk) #:nodoc:
       if topic.index('*')
         raise ArgumentError.new("Subscribers cannot have wildcard topics")
       end
       super
     end
 
-    def add_listener(topic, opts = {}, &blk)
+    def add_listener(topic, opts = {}, &blk) #:nodoc:
       if opts[:excl] && exclusive_group(opts).empty?
         raise ArgumentError.new("Invalid exclusive group")
       end
@@ -183,11 +183,11 @@ module Gilmour
       EM.next_tick { subscribe_topic(topic) }
     end
 
-    def listeners(topic)
+    def listeners(topic) #:nodoc:
       @subscriptions[topic] || []
     end
 
-    def remove_listener(topic, handler = nil)
+    def remove_listener(topic, handler = nil) #:nodoc:
       if handler
         subs = @subscriptions[topic]
         subs.delete_if { |e| e[:handler] == handler }
@@ -197,7 +197,7 @@ module Gilmour
       @subscriber.unsubscribe(topic) if @subscriptions[topic].empty?
     end
 
-    def send_message(sender, destination, payload, opts = {}, &blk)
+    def send_message(sender, destination, payload, opts = {}, &blk) #:nodoc:
       timeout = opts[:timeout] || 600
       if opts[:confirm_subscriber]
         confirm_subscriber(destination) do |present|
@@ -215,12 +215,18 @@ module Gilmour
       GLogger.debug e.backtrace
     end
 
-    def _send_message(sender, destination, payload, timeout, &blk)
+    def _send_message(sender, destination, payload, timeout, &blk) #:nodoc:
       register_response(sender, blk, timeout) if block_given?
       @publisher.publish(destination, payload)
       sender
     end
 
+    # Confirms whether an active subscriber is present. 
+    # Params
+    # +dest+:: The destination topic
+    #
+    # The given block is called with a true boolean
+    # if active subscribers exist, else with false
     def confirm_subscriber(dest, &blk)
       @publisher.pubsub('numsub', dest) do |_, num|
         blk.call(num.to_i > 0)
@@ -230,7 +236,7 @@ module Gilmour
       GLogger.debug e.backtrace
     end
 
-    def stop
+    def stop #:nodoc:
       @subscriber.close_connection
     end
 
@@ -242,7 +248,7 @@ module Gilmour
     # before a Gilmour server starts up. To circumvent this dependency, till
     # monitor is stable enough, use Redis to save/share these data structures.
     #
-    def register_health_check
+    def register_health_check #:nodoc:
       @publisher.hset GilmourHealthKey, self.ident, 'active'
 
       # - Start listening on a dyanmic topic that Health Monitor can publish
@@ -263,7 +269,7 @@ module Gilmour
 
     end
 
-    def unregister_health_check
+    def unregister_health_check #:nodoc:
       deleted = false
 
       @publisher.hdel(GilmourHealthKey, self.ident) do

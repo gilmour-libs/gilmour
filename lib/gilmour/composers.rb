@@ -1,7 +1,7 @@
 
 module Gilmour
   module Composers
-    class Request
+    class Request #:nodoc:
       attr_reader :topic
       def initialize(backend, spec)
         @backend = backend
@@ -42,7 +42,7 @@ module Gilmour
       end
     end
 
-    class Pipeline
+    class Pipeline #:nodoc:
       attr_reader :pipeline
 
       def initialize(backend, spec)
@@ -69,6 +69,11 @@ module Gilmour
     end
 
     class Compose < Pipeline
+      # Execute a pipeline. The output of the last stage of the
+      # pipeline is passed to the block, if all stages are
+      # successful. Otherwise, the output of the last successful stage
+      # is passed, along with the conitnuation which represents the
+      # remaining pipeline
       def execute(msg = {}, &blk)
         blk.call(nil, nil) if pipeline.empty?
         handler = proc do |queue, data, code|
@@ -84,11 +89,39 @@ module Gilmour
       end
     end
 
+    # Create a Compose pipeline as per the spec. This 
+    # is roughly equivalent to the following unix construct
+    #   cmd1 | cmd2 | cmd3 ...
+    # The spec is an array of hashes, each describing
+    # a request topic and message. The message is optional.
+    # If present, this message is merged into the output
+    # of the previous step, before passing it as the input.
+    # Eg, below, if msg2 was a Hash, it would be merged into
+    # the output from the subscriber of topic1, and the merged hash
+    # would be sent as the request body to topic2
+    #    [
+    #      {topic: topic1, message: msg1},
+    #      {topic: topic2, message: msg2},
+    #      ...
+    #    ]
+    #
+    # Instead of a hash, a spec item can also be a callable
+    # (proc or lambda). In that case, the output of the previous step
+    # is passed through the callable, and the return value of the callable
+    # is sent as the input to the next step.
+    #
+    # In place of a hash or callable, it is also possible to have
+    # any kind of composition itself, allowing the creation of
+    # nested compositions. See examples in the source code.
+    #
     def compose(spec)
       Compose.new(self, spec)
     end
 
     class AndAnd < Pipeline
+      # Execute the andand pipeline. The output of the last successful
+      # step is passed to block, along with the remaining continuation
+      # See the documentation of the #andand method for more details
       def execute(data={}, &blk)
         blk.call(nil, nil) if pipeline.empty?
         handler = proc do |queue, data, code|
@@ -104,16 +137,24 @@ module Gilmour
       end
     end
 
+    # Same as compose this composition does not pass data from one step to the
+    # next. Execution halts on the first error
+    # It is roughly equivalent to the unix construct
+    #   cmd1 && cmd2 && cmd3
+
     def andand(spec)
       AndAnd.new(self, spec)
     end
 
     class Batch < Pipeline
-      def initialize(backend, spec, record=false)
+      def initialize(backend, spec, record=false) #:nodoc:
         super(backend, spec)
         @record = record
       end
 
+      # Execute the batch pipeline. This pipeline ignores all errors
+      # step is passed to block.
+      # See the documentation of the #batch method for more details
       def execute(data={}, &blk)
         results = []
         blk.call(nil, nil) if pipeline.empty?
@@ -132,6 +173,16 @@ module Gilmour
       end
     end
 
+    # Same a compose, except that no errors are checked
+    # and the pipeline executes all steps unconditionally
+    # and sequentially. It is roughly equivalent to the unix construct
+    #   cmd1; cmd2; cmd3
+    # OR
+    #   (cmd1; cmd2; cmd3)
+    # Params:
+    # +record+:: If this is false, only the output of the last step
+    # is passed to the block passed to execute. If true, all outputs
+    # are collected in an array and passed to the block
     def batch(spec, record=false)
       Batch.new(self, spec, record)
     end
