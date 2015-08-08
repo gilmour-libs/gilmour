@@ -155,10 +155,10 @@ module Gilmour
         raise RuntimeError.new("Duplicate reply handler for #{topic}:#{group}")
       end
       opts[:type] = :reply
-      opts[:excl] = true
+      opts[:exclusive] = true
       add_listener(req_topic, opts, &blk)
     end
-    
+
     # Sets up a slot listener
     # Params:
     # +topic+:: The topic to listen on
@@ -171,7 +171,7 @@ module Gilmour
     def slot(topic, options={}, &blk)
       opts = options.dup
       stopic = slot_destination(topic)
-      if opts[:excl] && excl_dups?(stopic, opts)
+      if opts[:exclusive] && excl_dups?(stopic, opts)
         raise RuntimeError.new("Duplicate reply handler for #{topic}:#{group}")
       end
       opts[:type] = :slot
