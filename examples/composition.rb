@@ -22,6 +22,8 @@ gilmour.reply_to 'three' do
   respond request.body.merge({'three' => 'foo'})
 end
 
+sleep 1
+
 composed = gilmour.compose([{topic: 'one'}, {topic: 'two'},
                             {topic: 'three', message: {'anotherthree' => 'anotherthree'}}])
 compose_waiter = Gilmour::Waiter.new

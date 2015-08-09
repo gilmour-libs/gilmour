@@ -13,7 +13,8 @@ class EventServer
     end
     start(true)
   end
-  load_all './subscribers'
+  dirname = File.expand_path(File.dirname(__FILE__))
+  load_all File.join(dirname, 'subscribers')
 end
 
 EventServer.new
