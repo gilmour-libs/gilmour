@@ -174,7 +174,9 @@ module Gilmour
     end
 
     def add_listener(topic, opts = {}, &blk) #:nodoc:
-      if opts[:excl] && exclusive_group(opts).empty?
+      # TODO: leave for backward compatibility
+      opts[:exclusive] = opts[:excl] if opts[:exclusive].nil?
+      if opts[:exclusive] && exclusive_group(opts).empty?
         raise ArgumentError.new("Invalid exclusive group")
       end
       opts[:handler] ||= blk
@@ -262,11 +264,6 @@ module Gilmour
       add_listener(topic) do
         respond backend.get_subscribers
       end
-
-      # TODO: Need to do these manually. Alternate is to return the handler
-      # hash from add_listener.
-      @subscriptions[topic][0][:exclusive] = true
-
     end
 
     def unregister_health_check #:nodoc:

@@ -59,7 +59,7 @@ module Gilmour
       # Adds a listener for the given topic
       # +topic+:: The topic to listen to
       # +opts+:: Hash of optional arguments. Supported options are:
-      #          excl:: If true, this listener is added to a group of listeners
+      #          exclusive:: If true, this listener is added to a group of listeners
       #          with the same name as the name of the class in which this
       #          method is called. A message sent to the _topic_ will be
       #          processed by at most one listener from a group 
