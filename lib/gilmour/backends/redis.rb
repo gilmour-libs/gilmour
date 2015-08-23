@@ -145,7 +145,11 @@ module Gilmour
       end
     end
 
-    def response_handler(sender, payload) #:nodoc:
+    def response_handler(sender, payload)
+      EM.defer { _response_handler(sender, payload) }
+    end
+
+    def _response_handler(sender, payload) #:nodoc:
       data, code, _ = Gilmour::Protocol.parse_response(payload)
       handler = @response_handlers.delete(sender)
       @subscriber.unsubscribe(sender)

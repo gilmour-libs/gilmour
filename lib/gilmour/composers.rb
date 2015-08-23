@@ -25,7 +25,11 @@ module Gilmour
 
       def execute(data = {}, &blk)
         if @spec.kind_of?(Proc)
-          res = @spec.call(data)
+          begin
+            res = @spec.call(data)
+          rescue => e
+            code = 500
+          end
           code = res ? 200 : 500
           blk.call(res, code)
         else
