@@ -76,9 +76,9 @@ batch.execute do |data, code|
 end
 batch_waiter.wait
 
-batch_record =  gilmour.batch([{topic: 'one'}, {topic: 'badtwo'},
-                               {topic: 'three', message: {'anotherthree' => 'anotherthree'}}],
-true) # true will record all responses in an array
+batch_record = gilmour.batch([{topic: 'one'}, {topic: 'badtwo'},
+                              {topic: 'three', message: {'anotherthree' => 'anotherthree'}}
+                             ]).with_recorder # with_recorder will record all responses in an array
 batch_record_waiter = Gilmour::Waiter.new
 batch_record.execute do |data, code|
   puts "\nbatch with record:"

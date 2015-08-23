@@ -175,8 +175,8 @@ describe 'Pipelines' do
     context 'With record' do
       Given(:batchrecord) {
         gilmour.batch([{topic: 'one'}, {topic: 'badtwo'},
-                        {topic: 'three', message: {'anotherthree' => 'anotherthree'}}],
-                      true)
+                       {topic: 'three', message: {'anotherthree' => 'anotherthree'}}
+                      ]).with_recorder
       }
       Then {
         waiter = Waiter.new

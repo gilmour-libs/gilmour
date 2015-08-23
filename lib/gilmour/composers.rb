@@ -118,8 +118,8 @@ module Gilmour
     # any kind of composition itself, allowing the creation of
     # nested compositions. See examples in the source code.
     #
-    def compose(spec)
-      Compose.new(self, spec)
+    def compose(*spec)
+      Compose.new(self, spec.flatten)
     end
 
     class AndAnd < Pipeline
@@ -146,16 +146,20 @@ module Gilmour
     # It is roughly equivalent to the unix construct
     #   cmd1 && cmd2 && cmd3
 
-    def andand(spec)
-      AndAnd.new(self, spec)
+    def andand(*spec)
+      AndAnd.new(self, spec.flatten)
     end
 
     class Batch < Pipeline
-      def initialize(backend, spec, record=false) #:nodoc:
+      def initialize(backend, spec) #:nodoc:
         super(backend, spec)
-        @record = record
+        @record = false
       end
 
+      def with_recorder(record=true)
+        @record = record
+        self
+      end
       # Execute the batch pipeline. This pipeline ignores all errors
       # step is passed to block.
       # See the documentation of the #batch method for more details
@@ -187,8 +191,8 @@ module Gilmour
     # +record+:: If this is false, only the output of the last step
     # is passed to the block passed to execute. If true, all outputs
     # are collected in an array and passed to the block
-    def batch(spec, record=false)
-      Batch.new(self, spec, record)
+    def batch(*spec)
+      Batch.new(self, spec.flatten)
     end
 
     class Parallel < Pipeline
@@ -217,8 +221,15 @@ module Gilmour
       end 
     end
 
-    def parallel(spec)
-      Parallel.new(self, spec)
+    def parallel(*spec)
+      Parallel.new(self, spec.flatten)
+    end
+
+    def sync(*spec, &blk)
+      Parallel.new(self, spec.flatten).execute do |_res, code|
+        res = _res.size == 1 ? _res.first[:data] : _res
+        blk.call(res, code)
+      end
     end
   end
 end
