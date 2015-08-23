@@ -87,6 +87,13 @@ batch_record.execute do |data, code|
 end
 batch_record_waiter.wait
 
+parallel = gilmour.parallel([{topic: 'one'}, {topic: 'badtwo'}])
+parallel.execute do |data, code|
+  puts "\nparallel:"
+  puts code
+  data.each { |d| puts d }
+end
+
 t_andand = gilmour.andand([{topic: 'one'}, {topic: 'two'}])
 # Use the above composition inside another
 compose = gilmour.compose([t_andand, {topic: 'three'}])

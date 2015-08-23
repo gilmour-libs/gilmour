@@ -190,5 +190,35 @@ module Gilmour
     def batch(spec, record=false)
       Batch.new(self, spec, record)
     end
+
+    class Parallel < Pipeline
+      def initialize(backend, spec) #:nodoc:
+        super(backend, spec)
+      end
+
+      # Execute the batch pipeline. This pipeline ignores all errors
+      # step is passed to block.
+      # See the documentation of the #batch method for more details
+      def execute(data=nil, &blk)
+        results = []
+        blk.call(nil, nil) if pipeline.empty?
+        waiters = []
+        pipeline.each do |p|
+          waiter = Gilmour::Waiter.new
+          waiters << waiter
+          p.execute do |d, c|
+            results << {data: d, code: c}
+            waiter.signal
+          end
+        end 
+        waiters.each(&:wait)
+        code = results.map { |r| r[:code] }.max
+        blk.call(results, code)
+      end 
+    end
+
+    def parallel(spec)
+      Parallel.new(self, spec)
+    end
   end
 end

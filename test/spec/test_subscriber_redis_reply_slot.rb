@@ -11,7 +11,6 @@ def install_test_subscriber
   TestReplier.callback do |topic, data|
     @topic = topic
     @data = data
-    $stderr.puts "Got callback #{topic}, #{data}"
     waiter.signal
   end
   waiter

@@ -131,6 +131,23 @@ describe 'Pipelines' do
     end
   end
 
+  context 'Parallel' do
+    Given(:parallel) {
+      gilmour.parallel([{topic: 'one'}, {topic: 'badtwo'}, 
+                        {topic: 'three', message: {'anotherthree' => 'anotherthree'}}])
+    }
+    Then {
+      done = false
+      parallel.execute do |data, code|
+        expect(data).to be_kind_of(Array)
+        expect(data.size).to eq(3)
+        expect(code).to eq(500)
+        done = true
+      end
+      expect(done).to eq(true)
+    }
+  end
+
   context 'Batch' do
     context 'Without record' do
       Given(:batch) {
@@ -183,8 +200,13 @@ describe 'Pipelines' do
       Given(:andand) {
         gilmour.andand([{topic: 'one'}, {topic: 'two'}])
       }
+      Given(:parallel) {
+        gilmour.compose([gilmour.parallel([{topic: 'one'}, {topic: 'two'}]),
+                        ->(d) { d.reduce({}) { |m, r| m.merge(r[:data]) } }]
+                       )
+      }
       Given(:compose) {
-        gilmour.compose([andand, {topic: 'three'}])
+        gilmour.compose([andand, parallel, {topic: 'three'}])
       }
       Then {
         waiter = Waiter.new
@@ -195,11 +217,11 @@ describe 'Pipelines' do
           waiter.signal
         end
         waiter.wait
-        expect(data.keys.size).to eq(2)
-        ['two', 'three'].each do |k|
+        expect(code).to eq(200)
+        expect(data.keys.size).to eq(3)
+        ['one', 'two', 'three'].each do |k|
           expect(data.has_key?(k)).to be_truthy
         end
-        expect(code).to eq(200)
       }
     end
   end
