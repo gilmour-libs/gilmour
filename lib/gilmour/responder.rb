@@ -29,6 +29,7 @@ module Gilmour
 
     attr_reader :logger
     attr_reader :request
+    attr_reader :backend
 
     def child_logger(writer) #:nodoc:
       logger = Logger.new(STDERR)
