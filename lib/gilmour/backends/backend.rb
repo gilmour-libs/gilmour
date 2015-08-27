@@ -16,6 +16,12 @@ module Gilmour
     include Gilmour::Composers
     attr_accessor :broadcast_errors
 
+    def initialize
+      @exec_count_lock = Mutex.new
+      @exec_count = 0
+      @safe_shutdown = false
+    end
+
     def report_errors?  #:nodoc:
       #Override this method to adjust if you want errors to be reported.
       return false
@@ -227,6 +233,10 @@ module Gilmour
     end
 
     def _execute_handler(topic, data, sender, sub) #:nodoc:
+      if @safe_shutdown
+        return
+      end
+      @exec_count_lock.synchronize { @exec_count += 1 }
       respond = (sub[:type] != :slot)
       Gilmour::Responder.new(
         sender, topic, data, self, timeout: sub[:timeout],
@@ -235,6 +245,28 @@ module Gilmour
     rescue Exception => e
       GLogger.debug e.message
       GLogger.debug e.backtrace
+    ensure
+      @exec_count_lock.synchronize { @exec_count -= 1 }
+    end
+
+    def safe_shutdown(block=true, poll_delay=30)
+      pause
+      @safe_shutdown = true
+      $stderr.puts "Shutting down!"
+      loop do
+        #@exec_count_lock.synchronize do
+        if @exec_count == 0
+          stop
+          sleep poll_delay
+          return
+        end
+        #end
+        $stderr.puts "Active requests: #{@exec_count}"
+        sleep poll_delay
+      end
+    rescue => e
+      $stderr.puts e.message
+      $stderr.puts e.backtrace
     end
 
     def send_message #:nodoc:
@@ -252,10 +284,13 @@ module Gilmour
     end
 
     # stop the backend
-    def stop(sender, body, code)
+    def stop
       raise "Not implemented by child class"
     end
 
+    def pause
+      raise NotImplementedError.new
+    end
   end
 end
 

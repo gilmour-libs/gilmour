@@ -22,6 +22,7 @@ module Gilmour
     end
 
     def initialize(opts)
+      super()
       @response_handlers = {}
       @subscriptions = {}
 
@@ -246,6 +247,14 @@ module Gilmour
       @subscriber.close_connection
     end
 
+    def pause
+      $stderr.puts "Unsubscribing all topics"
+      @subscriptions.each do |key, sub|
+        method = key.index('*') ? :punsubscribe : :unsubscribe
+        $stderr.puts "Unsubscribing #{key}"
+        @subscriber.method(method).call(key)
+      end
+    end
     # TODO: Health checks currently use Redis to keep keys in a data structure.
     # An alternate approach would be that monitor subscribes to a topic
     # and records nodenames that request to be monitored. The publish method
