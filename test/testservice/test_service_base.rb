@@ -1,4 +1,3 @@
-require 'amqp'
 require_relative '../../lib/gilmour'
 
 class TestServiceBase

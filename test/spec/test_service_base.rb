@@ -23,19 +23,6 @@ describe TestServiceBase do
       subscribers.size.should == modules.size
     end
   end
-#  context 'Connect to AMQP' do
-#    after(:all) do
-#      AMQP.stop
-#      EM.stop
-#    end
-#    Given(:subscriber) { TestServiceBase.new(amqp_connection_options, 'amqp') }
-#    Given(:backend) { subscriber.backends['amqp'] }
-#    Then { backend.connection.should be_kind_of AMQP::Session }
-#    And  { backend.connection.connected?.should be_true }
-#    And  { backend.channel.should be_kind_of AMQP::Channel }
-#    And  { backend.exchange.should be_kind_of AMQP::Exchange }
-#    And  { backend.exchange.type.should == :topic }
-#  end
 
   context 'Connect to Redis' do
     Given(:subscriber) do
