@@ -36,10 +36,14 @@ module Gilmour
       loglevel =  ENV["LOG_LEVEL"] ? ENV["LOG_LEVEL"].to_sym : :warn
       logger.level = Gilmour::LoggerLevels[loglevel] || Logger::WARN
       logger.formatter = proc do |severity, datetime, progname, msg|
-        data = JSON.generate(severity: severity, msg: msg)
-#        data = "#{LOG_PREFIX}#{severity}#{LOG_SEPERATOR}#{msg}"
-        writer.write(data+"\n")
-        writer.flush
+        begin
+          data = JSON.generate(severity: severity, msg: msg)
+          #        data = "#{LOG_PREFIX}#{severity}#{LOG_SEPERATOR}#{msg}"
+          writer.write(data+"\n")
+          writer.flush
+        rescue
+          GLogger.error "Logger error: #{severity}: #{msg}"
+        end
         nil
       end
       logger
@@ -64,9 +68,9 @@ module Gilmour
       @timeout = opts[:timeout] || 600
       @multi_process = opts[:fork] || false
       @respond = opts[:respond]
-      @response_pipe = IO.pipe
-      @logger_pipe = IO.pipe
-      @command_pipe = IO.pipe
+      @response_pipe = IO.pipe("UTF-8")
+      @logger_pipe = IO.pipe("UTF-8")
+      @command_pipe = IO.pipe("UTF-8")
       @logger = make_logger()
       @delayed_response = false
     end
@@ -75,6 +79,9 @@ module Gilmour
       sender, res_data, res_code, opts = JSON.parse(data)
       res_code ||= 200 if @respond
       write_response(sender, res_data, res_code) if sender && res_code
+    rescue => e
+      GLogger.error e.message
+      GLogger.error e.backtrace
     end
 
     # Called by parent
@@ -84,6 +91,9 @@ module Gilmour
         emit_error data, code
       end
       @backend.send_response(sender, data, code)
+    rescue => e
+      GLogger.error e.message
+      GLogger.error e.backtrace
     end
 
     # proxy to base add_listener
@@ -200,7 +210,7 @@ module Gilmour
       # Create pipes for child communication
       @read_pipe, @write_pipe = @response_pipe
       @read_command_pipe, @write_command_pipe = @command_pipe
-      @read_logger_pipe, @write_logger_pipe = @logger_pipe = IO.pipe
+      @read_logger_pipe, @write_logger_pipe = @logger_pipe = IO.pipe("UTF-8")
 
       # setup relay threads
       wg = Gilmour::Waiter.new
