@@ -1,7 +1,6 @@
 # encoding: utf-8
 
 require 'rspec/given'
-require 'amqp'
 require 'redis'
 
 require_relative 'helpers/connection'
