@@ -18,7 +18,8 @@ module Gilmour
       host = opts[:host] || '127.0.0.1'
       port = opts[:port] || 6379
       db = opts[:db] || 0
-      "redis://#{host}:#{port}/#{db}"
+      password = opts[:password] ? ":#{opts[:password]}@" : ""
+      "redis://#{password}#{host}:#{port}/#{db}"
     end
 
     def initialize(opts)
@@ -75,6 +76,7 @@ module Gilmour
     end
 
     def setup_pubsub(opts) #:nodoc:
+      redis_host = redis_host(opts)
       @publisher = EM::Hiredis.connect(redis_host(opts))
       @subscriber = @publisher.pubsub_client
       register_handlers

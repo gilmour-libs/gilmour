@@ -72,7 +72,7 @@ describe 'TestSubscriber' do
       end
 
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When(:code) do
         waiter = Waiter.new
@@ -99,7 +99,7 @@ describe 'TestSubscriber' do
       end
 
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When(:code) do
         code = nil
@@ -124,7 +124,7 @@ describe 'TestSubscriber' do
       end
 
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When(:code) do
         waiter_error = Waiter.new
@@ -151,7 +151,7 @@ describe 'TestSubscriber' do
       end
 
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When(:code) do
         waiter_error = Waiter.new
@@ -185,7 +185,7 @@ describe 'TestSubscriber' do
       end
 
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When(:code) do
         waiter = Waiter.new
@@ -243,7 +243,7 @@ describe 'TestSubscriber' do
       end
 
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When(:response) do
         waiter = Waiter.new
@@ -267,7 +267,7 @@ describe 'TestSubscriber' do
     context 'Send and receive a message', :debug do
       Given(:ping_opts) { redis_ping_options }
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When(:response) do
         waiter = Waiter.new
@@ -290,7 +290,7 @@ describe 'TestSubscriber' do
     context 'Send once, Receive twice' do
       Given(:ping_opts) { redis_ping_options }
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When (:response) do
         waiter = Waiter.new
@@ -317,7 +317,7 @@ describe 'TestSubscriber' do
     context 'Send once, Receive Once' do
       Given(:ping_opts) { redis_ping_options }
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When (:response) do
         waiter = Waiter.new
@@ -342,7 +342,7 @@ describe 'TestSubscriber' do
     context 'Send message from subscriber' do
       Given(:ping_opts) { redis_ping_options }
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When (:response) do
         data = code = nil

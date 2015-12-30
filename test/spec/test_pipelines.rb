@@ -2,6 +2,7 @@ require 'rspec/given'
 
 require_relative '../../lib/gilmour'
 require_relative 'helpers/common'
+require_relative 'helpers/connection'
 
 class Server
   include Gilmour::Base
@@ -12,7 +13,7 @@ describe 'Pipelines' do
     EM.stop
   end
   Given(:gilmour) { 
-    Server.new.enable_backend('redis')
+    Server.new.enable_backend('redis', redis_connection_options)
   }
   When {
     gilmour.reply_to 'one' do

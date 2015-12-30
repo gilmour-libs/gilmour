@@ -50,7 +50,7 @@ describe 'TestSubscriberFork' do
       end
 
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When(:code) do
         waiter = Waiter.new
@@ -77,7 +77,7 @@ describe 'TestSubscriberFork' do
       end
 
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When(:code) do
         code = nil
@@ -102,7 +102,7 @@ describe 'TestSubscriberFork' do
       end
 
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When(:code) do
         waiter_error = Waiter.new
@@ -135,7 +135,7 @@ describe 'TestSubscriberFork' do
       end
 
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When(:code) do
         waiter_error = Waiter.new
@@ -162,7 +162,7 @@ describe 'TestSubscriberFork' do
       end
 
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When(:code) do
         waiter = Waiter.new
@@ -187,7 +187,7 @@ describe 'TestSubscriberFork' do
       end
 
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When(:code) do
         waiter = Waiter.new
@@ -209,7 +209,7 @@ describe 'TestSubscriberFork' do
     context 'Send and receive a message', :debug do
       Given(:ping_opts) { redis_ping_options }
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When(:response) do
         waiter = Waiter.new
@@ -232,7 +232,7 @@ describe 'TestSubscriberFork' do
     context 'Send & Recieve a message on a wildcard key' do
       Given(:wildcard_opts) { redis_wildcard_options }
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When(:response) do
         data = code = nil
@@ -258,7 +258,7 @@ describe 'TestSubscriberFork' do
     context 'Send once, Receive twice' do
       Given(:ping_opts) { redis_ping_options }
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When (:response) do
         waiter = Waiter.new
@@ -283,7 +283,7 @@ describe 'TestSubscriberFork' do
     context 'Check Exclusive Parallelism' do
       Given(:ping_opts) { redis_ping_options }
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When (:response) do
         waiter = Waiter.new
@@ -309,7 +309,7 @@ describe 'TestSubscriberFork' do
     context 'Check Parallelism' do
       Given(:ping_opts) { redis_ping_options }
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When (:response) do
         waiter = Waiter.new
@@ -333,7 +333,7 @@ describe 'TestSubscriberFork' do
     context 'Send once, Receive Once' do
       Given(:ping_opts) { redis_ping_options }
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When (:response) do
         waiter = Waiter.new
@@ -360,7 +360,7 @@ describe 'TestSubscriberFork' do
       end
 
       When(:sub) do
-        Gilmour::RedisBackend.new({})
+        Gilmour::RedisBackend.new(redis_connection_options)
       end
       When(:code) do
         code = nil
