@@ -1,7 +1,7 @@
 ---
 :connection:
   :host: localhost
-  :exchange: testtopicexchange
+  :password: testpass # set redis password to this for testing with auth
 :ping:
   :message: Ping!
   :response: Pong!

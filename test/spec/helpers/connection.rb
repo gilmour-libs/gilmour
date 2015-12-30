@@ -24,8 +24,17 @@ def redis_wildcard_options
   options(:wildcard)
 end
 
+def redis_host(opts)
+  host = opts[:host] || '127.0.0.1'
+  port = opts[:port] || 6379
+  db = opts[:db] || 0
+  password = opts[:password] ? ":#{opts[:password]}@" : ""
+  "redis://#{password}#{host}:#{port}/#{db}"
+end
+
+
 def redis_publish_async(options, message, key)
-  redis = EM::Hiredis.connect
+  redis = EM::Hiredis.connect(redis_host(options))
   EM.defer do
     payload, _ = Gilmour::Protocol.create_request(message)
     redis.publish(key, payload)
