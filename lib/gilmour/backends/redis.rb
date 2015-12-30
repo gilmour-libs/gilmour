@@ -226,7 +226,13 @@ module Gilmour
 
     def _send_message(sender, destination, payload, timeout, &blk) #:nodoc:
       register_response(sender, blk, timeout) if block_given?
-      @publisher.publish(destination, payload)
+      @publisher.publish(destination, payload).errback do |err|
+        GLogger.info err.message
+        GLogger.info "Retrying publish"
+        @publisher.publish(destination, payload).errback do |sec_err|
+          GLogger.info sec_err.message
+        end
+      end
       sender
     end
 
