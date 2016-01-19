@@ -177,6 +177,7 @@ module Gilmour
     def slot(topic, options={}, &blk)
       opts = options.dup
       stopic = slot_destination(topic)
+      opts[:exclusive] = true if opts[:excl_group]
       if opts[:exclusive] && excl_dups?(stopic, opts)
         raise RuntimeError.new("Duplicate reply handler for #{topic}:#{group}")
       end
@@ -238,6 +239,7 @@ module Gilmour
       end
       @exec_count_lock.synchronize { @exec_count += 1 }
       respond = (sub[:type] != :slot)
+      remove_listener(topic, sub[:handler]) if sub[:singleshot]
       Gilmour::Responder.new(
         sender, topic, data, self, timeout: sub[:timeout],
         fork: sub[:fork], respond: respond
