@@ -234,6 +234,7 @@ module Gilmour
     end
 
     def _execute_handler(topic, data, sender, sub) #:nodoc:
+      GLogger.debug("Executing handler for #{topic} from #{sender}")
       if @safe_shutdown
         return
       end
