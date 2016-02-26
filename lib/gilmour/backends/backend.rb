@@ -190,17 +190,17 @@ module Gilmour
     # Removes existing _handler_ for the _topic_
     # Use only if you have registered the handler with add_listener
     # or listen_to
-    def remove_listener(topic, handler)
+    def remove_listener(topic, handler=nil)
       raise "Not implemented by child class"
     end
 
     # Removes existing slot handler for the _topic_
-    def remove_slot(topic, handler)
+    def remove_slot(topic, handler=nil)
       remove_listener(slot_destination(topic), handler)
     end
 
     # Removes existing reply handler for the _topic_
-    def remove_reply(topic, handler)
+    def remove_reply(topic, handler=nil)
       remove_listener(request_destination(topic), handler)
     end
 
