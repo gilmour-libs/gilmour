@@ -1,3 +1,5 @@
+require_relative '../container'
+
 class EchoSubscriber < EventServer
   reply_to 'echo', excl_group: 'echo' do
     if request.body == 'quit'
@@ -16,7 +18,4 @@ class EchoSubscriber < EventServer
       respond "#{request.topic}"
     end
   end
-
 end
-
-

@@ -17,4 +17,4 @@ class EventServer
   load_all File.join(dirname, 'subscribers')
 end
 
-EventServer.new
+EventServer.new if __FILE__ == $PROGRAM_NAME

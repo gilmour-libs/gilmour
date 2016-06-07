@@ -31,5 +31,3 @@ EM.next_tick {
 }
 
 waiter.wait
-
-
